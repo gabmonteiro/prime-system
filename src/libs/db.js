@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 // src/libs/db.js
 import mongoose from 'mongoose';
 

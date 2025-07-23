@@ -69,6 +69,23 @@ async function main() {
     await Despesa.insertMany(despesasSeed);
     console.log('25 despesas criadas');
 
+    // Usuário padrão
+    try {
+      const userExists = await UserService.getUserByEmail('admin@gmail.com');
+      if (!userExists) {
+        await UserService.createUser({
+          email: 'admin@gmail.com',
+          password: 'admin',
+          name: 'Administrador'
+        });
+        console.log('Usuário admin criado');
+      } else {
+        console.log('Usuário admin já existe');
+      }
+    } catch (err) {
+      console.error('Erro ao criar usuário admin:', err);
+    }
+
     await mongoose.disconnect();
     process.exit(0);
   } catch (err) {
