@@ -73,22 +73,22 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-72 h-screen bg-white border-r border-gray-200 flex flex-col shadow-sm">
+    <aside className="w-72 h-screen bg-gray-50 flex flex-col shadow-lg"> {/* Mudança 1: Fundo sutil e sombra mais forte */}
       {/* Logo Section */}
-      <div className="p-6 border-b border-gray-100">
+      <div className="p-8"> {/* Mudança 2: Mais padding, sem borda inferior */}
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-md"> {/* Gradiente mais suave */}
             <ChartBarIcon className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gradient-primary">Prime System</h1>
+            <h1 className="text-xl font-bold text-gray-800">Prime System</h1> {/* Cor de texto mais sólida para o título */}
             <p className="text-xs text-gray-500 font-medium">Dashboard</p>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-2">
+      <nav className="flex-1 px-5 py-6 space-y-2"> {/* Padding ajustado */}
         <div className="mb-6">
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-3">
             Menu Principal
@@ -99,34 +99,52 @@ export default function Sidebar() {
               const Icon = isActive ? link.iconSolid : link.icon;
               
               return (
-                <li key={link.href}>
+                <li
+                  key={link.href}
+                  className="!border-0 !border-none bg-transparent rounded-xl"
+                  style={{ border: 'none', background: 'transparent', boxShadow: 'none', margin: 0, padding: 0 }}
+                >
                   <button
                     type="button"
                     onClick={() => router.push(link.href)}
-                    className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl text-left transition-all duration-200 group ${
-                      isActive 
-                        ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-100' 
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
+                    className={`w-full flex items-center space-x-3 py-3 rounded-xl text-left transition-all duration-200 group relative
+                      ${isActive 
+                        ? 'bg-blue-100 bg-opacity-70 text-blue-800' // Fundo mais visível, mas ainda suave, texto mais escuro
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 hover:bg-opacity-50' // Hover mais suave
+                      }
+                      ${isActive ? 'pl-2' : 'pl-3'}
+                    `}
                   >
-                    <Icon className={`w-5 h-5 flex-shrink-0 ${
-                      isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'
-                    }`} />
+                    {isActive && ( // Indicador de ativo: barra lateral elegante
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r-lg"></div>
+                    )}
+                    <Icon
+                      className={`w-6 h-6 flex-shrink-0 transition-all duration-200 drop-shadow-sm ${
+                        isActive 
+                          ? 'text-blue-600' // cor do ícone ativo
+                          : 'text-gray-400 group-hover:text-blue-500' // cor do ícone normal
+                      }`}
+                      style={{
+                        backgroundColor: isActive ? '#fff' : 'transparent',
+                        borderRadius: isActive ? '0.5rem' : undefined,
+                        padding: isActive ? '0.25rem' : undefined,
+                        boxShadow: isActive ? '0 2px 8px rgba(59,130,246,0.15)' : undefined,
+                        color: isActive ? '#2563eb' : '#94a3b8', // azul para ativo, cinza para normal
+                        border: 'none'
+                      }}
+                    />
                     <div className="flex-1 min-w-0">
                       <div className={`font-medium text-sm ${
-                        isActive ? 'text-blue-900' : 'text-gray-700 group-hover:text-gray-900'
+                        isActive ? 'text-blue-800' : 'text-gray-700 group-hover:text-gray-900' // Cor do texto principal
                       }`}>
                         {link.label}
                       </div>
                       <div className={`text-xs ${
-                        isActive ? 'text-blue-600' : 'text-gray-500'
+                        isActive ? 'text-blue-600' : 'text-gray-500' // Cor da descrição
                       }`}>
                         {link.description}
                       </div>
                     </div>
-                    {isActive && (
-                      <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                    )}
                   </button>
                 </li>
               );
@@ -136,10 +154,10 @@ export default function Sidebar() {
       </nav>
 
       {/* User Section */}
-      <div className="p-4 border-t border-gray-100 space-y-4">
+      <div className="p-4 pt-0 space-y-4"> {/* Mudança 3: Mais padding, sem borda superior */}
         {/* User Info */}
-        <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-xl">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
+        <div className="flex items-center space-x-3 p-3 bg-white rounded-xl shadow-sm border border-gray-100"> {/* Fundo branco, sombra sutil e borda muito leve */}
+          <div className="w-10 h-10 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg flex items-center justify-center">
             <UserIcon className="w-5 h-5 text-blue-600" />
           </div>
           <div className="flex-1 min-w-0">

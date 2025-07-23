@@ -884,6 +884,7 @@ svg[data-slot="icon"] {
   display: inline-block !important;
   width: 20px !important;
   height: 20px !important;
+  /* Removido forçar cor, fundo e borda para permitir customização nos componentes */
 }
 
 /* Global icon size override for all SVGs from Heroicons */
@@ -891,6 +892,7 @@ svg {
   width: 20px !important;
   height: 20px !important;
   max-width: 100% !important;
+  /* Removido forçar cor, fundo e borda para permitir customização nos componentes */
 }
 
 /* Specific override for Heroicons */
@@ -898,6 +900,7 @@ svg[data-testid*="icon"],
 svg[aria-hidden="true"] {
   width: 20px !important;
   height: 20px !important;
+  /* Removido forçar cor, fundo e borda para permitir customização nos componentes */
 }
 
 /* Heroicons className overrides */
