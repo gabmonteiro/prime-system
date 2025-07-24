@@ -1,198 +1,522 @@
+"use client";
 import Link from "next/link";
-import { 
-  ArrowRightIcon, 
-  ShieldCheckIcon, 
-  ChartBarIcon, 
-  CogIcon,
-  UsersIcon,
-  ClockIcon
-} from "@heroicons/react/24/outline";
+import { useState, useEffect } from "react";
+import {
+  FaArrowRight,
+  FaShieldAlt,
+  FaChartBar,
+  FaCog,
+  FaUsers,
+  FaClock,
+  FaBars,
+  FaTimes,
+  FaPlay,
+  FaCheck,
+  FaStar,
+  FaCar,
+  FaCalendarAlt,
+  FaBoxes,
+} from "react-icons/fa";
 
 export default function HomePage() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const handleGetStarted = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+      // Redirect logic here
+    }, 2000);
+  };
+
+  const features = [
+    {
+      icon: FaCar,
+      title: "Gestão de Serviços",
+      description:
+        "Controle completo dos serviços de estética automotiva, desde lavagem até enceramento e proteção cerâmica.",
+      color: "blue",
+    },
+    {
+      icon: FaUsers,
+      title: "Cadastro de Clientes",
+      description:
+        "Gerencie informações dos clientes, histórico de veículos e preferências de serviços personalizados.",
+      color: "indigo",
+    },
+    {
+      icon: FaCalendarAlt,
+      title: "Agendamento Online",
+      description:
+        "Sistema completo de agendamentos com controle de horários, profissionais e disponibilidade.",
+      color: "green",
+    },
+    {
+      icon: FaChartBar,
+      title: "Relatórios Financeiros",
+      description:
+        "Acompanhe faturamento, despesas operacionais e controle financeiro da Prime Auto Care.",
+      color: "purple",
+    },
+    {
+      icon: FaBoxes,
+      title: "Controle de Estoque",
+      description:
+        "Gerencie produtos, ceras, produtos químicos e equipamentos utilizados nos serviços.",
+      color: "orange",
+    },
+    {
+      icon: FaCog,
+      title: "Configurações do Sistema",
+      description:
+        "Personalize o sistema conforme as necessidades específicas da Prime Auto Care.",
+      color: "emerald",
+    },
+  ];
+
+  const testimonials = [
+    {
+      name: "Carlos Silva",
+      role: "Proprietário BMW 320i",
+      content:
+        "A Prime Auto Care transformou meu carro! O resultado dos serviços é excepcional e o atendimento impecável.",
+      rating: 5,
+    },
+    {
+      name: "Marina Santos",
+      role: "Cliente Audi A4",
+      content:
+        "Profissionais altamente qualificados! Meu carro ficou como novo após o tratamento cerâmico.",
+      rating: 5,
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100">
-      {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float"></div>
-        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-float" style={{ animationDelay: '1s' }}></div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 overflow-hidden">
+      {/* Enhanced Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-72 h-72 lg:w-96 lg:h-96 bg-gradient-to-r from-blue-200 to-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float"></div>
+        <div className="absolute top-3/4 right-1/4 w-72 h-72 lg:w-96 lg:h-96 bg-gradient-to-r from-purple-200 to-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-delayed"></div>
+        <div className="absolute top-1/2 left-1/2 w-72 h-72 lg:w-96 lg:h-96 bg-gradient-to-r from-emerald-200 to-teal-200 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-float-slow"></div>
+
+        {/* Grid Pattern */}
+        <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
       </div>
 
-      {/* Navigation */}
-      <nav className="relative z-10 flex justify-between items-center p-6 lg:px-8">
-        <div className="flex items-center space-x-2">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
-            <ChartBarIcon className="heroicon-md text-white" />
-          </div>
-          <span className="text-xl font-bold text-gradient-primary">Prime System</span>
-        </div>
-        
-        <div className="hidden md:flex items-center space-x-8">
-          <a href="#features" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">Recursos</a>
-          <a href="#about" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">Sobre</a>
-          <a href="#contact" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">Contato</a>
-        </div>
-        
-          <Link href="/login" className="btn-primary flex items-center space-x-2">
-            <span>Entrar</span>
-            <ArrowRightIcon className="heroicon-sm text-white" />
-          </Link>
-      </nav>
-
-      {/* Hero Section */}
-      <main className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 pt-20 pb-16">
-        <div className="text-center">
-          <div className="mb-8 flex justify-center">
-            <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-semibold inline-flex items-center space-x-2 animate-fadeInScale">
-              <ShieldCheckIcon className="heroicon-sm text-blue-700" />
-              <span>Sistema Seguro e Confiável</span>
+      {/* Enhanced Navigation */}
+      <nav
+        className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+          scrollY > 50
+            ? "bg-white/80 backdrop-blur-lg shadow-lg"
+            : "bg-transparent"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4 lg:py-6">
+            {/* Logo */}
+            <div className="flex items-center space-x-3">
+              <img
+                src="/prime auto care.png"
+                alt="Prime Auto Care Logo"
+                className="w-10 h-10 lg:w-12 lg:h-12 object-contain"
+              />
+              <span className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                Prime Auto Care
+              </span>
             </div>
-          </div>
-          
-          <h1 className="text-5xl lg:text-7xl font-bold text-gray-900 mb-6 animate-slideInUp">
-            Gerencie seu negócio com{" "}
-            <span className="text-gradient-primary">Prime System</span>
-          </h1>
-          
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12 leading-relaxed animate-slideInUp" style={{ animationDelay: '0.2s' }}>
-            Uma plataforma completa e intuitiva para gestão empresarial. 
-            Controle serviços, despesas e muito mais em um só lugar, 
-            com segurança e eficiência.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6 animate-slideInUp" style={{ animationDelay: '0.4s' }}>
-            <Link href="/login" className="btn-primary text-lg px-8 py-4 flex items-center space-x-3">
-              <span>Começar Agora</span>
-              <ArrowRightIcon className="heroicon-md text-white" />
-            </Link>
-            
-            <button className="btn-secondary text-lg px-8 py-4 flex items-center space-x-3">
-              <span>Ver Demo</span>
-              <ClockIcon className="heroicon-md text-gray-600" />
+
+            {/* Desktop Menu */}
+            <div className="hidden lg:flex items-center space-x-8">
+              <a href="#features" className="nav-link">
+                Serviços
+              </a>
+              <a href="#testimonials" className="nav-link">
+                Clientes
+              </a>
+              <a href="#about" className="nav-link">
+                Sobre
+              </a>
+              <a href="#contact" className="nav-link">
+                Contato
+              </a>
+            </div>
+
+            {/* Desktop CTA */}
+            <div className="hidden lg:flex items-center space-x-4">
+              <Link href="/login" className="btn-secondary">
+                Sistema
+              </Link>
+              <Link href="/dashboard" className="btn-primary">
+                <span>Agendar Serviço</span>
+                <FaArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              aria-label="Toggle menu"
+            >
+              {isMenuOpen ? (
+                <FaTimes className="w-6 h-6 text-gray-600" />
+              ) : (
+                <FaBars className="w-6 h-6 text-gray-600" />
+              )}
             </button>
           </div>
         </div>
 
-        {/* Features Section */}
-        <section id="features" className="mt-32">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Recursos Poderosos</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Descubra todas as funcionalidades que tornam o Prime System 
-              a escolha ideal para sua empresa.
-            </p>
+        {/* Mobile Menu */}
+        <div
+          className={`lg:hidden transition-all duration-300 ${
+            isMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+          } overflow-hidden bg-white/95 backdrop-blur-lg border-t border-gray-200`}
+        >
+          <div className="px-4 py-6 space-y-4">
+            <a href="#features" className="block nav-link-mobile">
+              Serviços
+            </a>
+            <a href="#testimonials" className="block nav-link-mobile">
+              Clientes
+            </a>
+            <a href="#about" className="block nav-link-mobile">
+              Sobre
+            </a>
+            <a href="#contact" className="block nav-link-mobile">
+              Contato
+            </a>
+            <div className="pt-4 space-y-3">
+              <Link
+                href="/login"
+                className="block btn-secondary w-full text-center"
+              >
+                Sistema
+              </Link>
+              <Link href="/dashboard" className="block btn-primary w-full">
+                <span>Agendar Serviço</span>
+                <FaArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Feature Card 1 */}
-            <div className="card p-8 text-center group animate-slideInUp" style={{ animationDelay: '0.1s' }}>
-              <div className="w-14 h-14 bg-blue-100 rounded-2xl mx-auto mb-6 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                <ChartBarIcon className="heroicon-lg text-blue-600" />
+        </div>
+      </nav>
+
+      {/* Enhanced Hero Section */}
+      <main className="relative z-10 pt-24 lg:pt-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            {/* Badge */}
+            <div className="mb-8 flex justify-center animate-fadeInScale">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-full text-sm font-semibold inline-flex items-center space-x-2 shadow-sm hover:shadow-md transition-shadow">
+                <FaCar className="w-4 h-4" />
+                <span>Especialistas em Estética Automotiva</span>
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Dashboard Inteligente</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Visualize todos os dados importantes do seu negócio em 
-                gráficos e relatórios interativos e fáceis de entender.
+            </div>
+
+            {/* Main Heading */}
+            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-gray-900 mb-6 animate-slideInUp leading-tight">
+              Cuide do seu veículo com{" "}
+              <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                Prime Auto Care
+              </span>
+            </h1>
+
+            {/* Subtitle */}
+            <p className="text-lg sm:text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto mb-12 leading-relaxed animate-slideInUp animation-delay-200">
+              Estética automotiva premium com tecnologia de ponta. Proteja e
+              valorize seu veículo com nossos serviços especializados e sistema
+              de gestão avançado.
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6 mb-16 animate-slideInUp animation-delay-400">
+              <button
+                onClick={handleGetStarted}
+                disabled={isLoading}
+                className="btn-primary-large group"
+                aria-label="Começar agora"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="loading-spinner"></div>
+                    <span>Carregando...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Agendar Serviço</span>
+                    <FaArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
+              </button>
+
+              <button className="btn-secondary-large group">
+                <FaPlay className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                <span>Ver Serviços</span>
+              </button>
+            </div>
+
+            {/* Social Proof */}
+            <div className="animate-fadeInScale animation-delay-600">
+              <p className="text-sm text-gray-500 mb-4">
+                Confiado por mais de 500+ clientes satisfeitos
+              </p>
+              <div className="flex items-center justify-center space-x-8 opacity-60">
+                {/* Company logos would go here */}
+                <div className="w-24 h-8 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-24 h-8 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-24 h-8 bg-gray-200 rounded animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Features Section */}
+        <section id="features" className="mt-32 lg:mt-40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16 lg:mb-20">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+                Serviços Especializados
+              </h2>
+              <p className="text-lg sm:text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                Conheça nossos serviços premium de estética automotiva e sistema
+                de gestão para sua oficina.
               </p>
             </div>
 
-            {/* Feature Card 2 */}
-            <div className="card p-8 text-center group animate-slideInUp" style={{ animationDelay: '0.2s' }}>
-              <div className="w-14 h-14 bg-blue-100 rounded-2xl mx-auto mb-6 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                <CogIcon className="heroicon-lg text-blue-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Gestão de Serviços</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Controle completo de serviços prestados, clientes atendidos 
-                e histórico detalhado de todas as atividades.
-              </p>
-            </div>
-
-            {/* Feature Card 3 */}
-            <div className="card p-8 text-center group animate-slideInUp" style={{ animationDelay: '0.3s' }}>
-              <div className="w-14 h-14 bg-blue-100 rounded-2xl mx-auto mb-6 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                <ShieldCheckIcon className="heroicon-lg text-blue-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Segurança Avançada</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Seus dados protegidos com criptografia de ponta e 
-                autenticação segura para total tranquilidade.
-              </p>
-            </div>
-
-            {/* Feature Card 4 */}
-            <div className="card p-8 text-center group animate-slideInUp" style={{ animationDelay: '0.4s' }}>
-              <div className="w-14 h-14 bg-blue-100 rounded-2xl mx-auto mb-6 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                <UsersIcon className="heroicon-lg text-blue-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Gestão de Equipe</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Organize participantes, distribua tarefas e acompanhe 
-                o desempenho da sua equipe em tempo real.
-              </p>
-            </div>
-
-            {/* Feature Card 5 */}
-            <div className="card p-8 text-center group animate-slideInUp" style={{ animationDelay: '0.5s' }}>
-              <div className="w-14 h-14 bg-blue-100 rounded-2xl mx-auto mb-6 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                <ClockIcon className="heroicon-lg text-blue-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Relatórios em Tempo Real</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Acompanhe métricas importantes e tome decisões baseadas 
-                em dados atualizados constantemente.
-              </p>
-            </div>
-
-            {/* Feature Card 6 */}
-            <div className="card p-8 text-center group animate-slideInUp" style={{ animationDelay: '0.6s' }}>
-              <div className="w-14 h-14 bg-blue-100 rounded-2xl mx-auto mb-6 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                <ChartBarIcon className="heroicon-lg text-blue-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Controle Financeiro</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Monitore receitas, despesas e fluxo de caixa com 
-                ferramentas intuitivas e relatórios detalhados.
-              </p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+              {features.map((feature, index) => (
+                <div
+                  key={index}
+                  className="feature-card group"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <div
+                    className={`feature-icon bg-${feature.color}-100 group-hover:bg-${feature.color}-200`}
+                  >
+                    <feature.icon
+                      className={`w-7 h-7 lg:w-8 lg:h-8 text-${feature.color}-600`}
+                    />
+                  </div>
+                  <h3 className="text-xl lg:text-2xl font-semibold text-gray-900 mb-4">
+                    {feature.title}
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    {feature.description}
+                  </p>
+                  <div className="mt-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-blue-600 font-medium text-sm flex items-center">
+                      Saiba mais
+                      <FaArrowRight className="w-4 h-4 ml-1" />
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="mt-32 text-center">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-3xl p-12 lg:p-16 text-white animate-fadeInScale">
-            <h2 className="text-4xl font-bold mb-6">
-              Pronto para revolucionar sua gestão?
-            </h2>
-            <p className="text-xl opacity-90 mb-8 max-w-2xl mx-auto">
-              Junte-se a centenas de empresas que já transformaram 
-              seus resultados com o Prime System.
-            </p>
-            <Link href="/login" className="bg-white text-blue-600 hover:bg-gray-50 px-8 py-4 rounded-xl font-semibold text-lg inline-flex items-center space-x-3 transition-all hover:transform hover:scale-105">
-              <span>Começar Gratuitamente</span>
-              <ArrowRightIcon className="heroicon-md text-blue-600" />
-            </Link>
+        {/* Testimonials Section */}
+        <section id="testimonials" className="mt-32 lg:mt-40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+                O que nossos clientes dizem
+              </h2>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8">
+              {testimonials.map((testimonial, index) => (
+                <div key={index} className="testimonial-card">
+                  <div className="flex items-center mb-4">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <FaStar
+                        key={i}
+                        className="w-5 h-5 text-yellow-400 fill-current"
+                      />
+                    ))}
+                  </div>
+                  <p className="text-gray-700 mb-6 text-lg leading-relaxed">
+                    "{testimonial.content}"
+                  </p>
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-semibold">
+                      {testimonial.name.charAt(0)}
+                    </div>
+                    <div className="ml-4">
+                      <p className="font-semibold text-gray-900">
+                        {testimonial.name}
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        {testimonial.role}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Enhanced CTA Section */}
+        <section className="mt-32 lg:mt-40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="cta-section">
+              <div className="text-center">
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 text-white">
+                  Pronto para cuidar do seu veículo?
+                </h2>
+                <p className="text-lg sm:text-xl lg:text-2xl opacity-90 mb-8 max-w-3xl mx-auto leading-relaxed">
+                  Agende seu serviço na Prime Auto Care e descubra a diferença
+                  de um trabalho profissional.
+                </p>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6 mb-8">
+                  <Link href="/dashboard" className="btn-white-large group">
+                    <span>Agendar Serviço</span>
+                    <FaArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                  <button className="btn-outline-white-large">
+                    Ver Localização
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-center space-x-6 text-white/80 text-sm">
+                  <div className="flex items-center">
+                    <FaCheck className="w-4 h-4 mr-2" />
+                    <span>Orçamento gratuito</span>
+                  </div>
+                  <div className="flex items-center">
+                    <FaCheck className="w-4 h-4 mr-2" />
+                    <span>Garantia de qualidade</span>
+                  </div>
+                  <div className="flex items-center">
+                    <FaCheck className="w-4 h-4 mr-2" />
+                    <span>Suporte 24/7</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 bg-gray-50 border-t border-gray-200 mt-32">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
-          <div className="text-center">
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-                <ChartBarIcon className="heroicon-sm text-white" />
+      {/* Enhanced Footer */}
+      <footer className="relative z-10 bg-gray-900 text-white mt-32 lg:mt-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="grid md:grid-cols-4 gap-8">
+            {/* Company Info */}
+            <div className="md:col-span-2">
+              <div className="flex items-center space-x-3 mb-6">
+                <img
+                  src="/prime auto care.png"
+                  alt="Prime Auto Care Logo"
+                  className="w-10 h-10 object-contain"
+                />
+                <span className="text-xl font-bold">Prime Auto Care</span>
               </div>
-              <span className="text-lg font-bold text-gradient-primary">Prime System</span>
+              <p className="text-gray-400 mb-6 max-w-md leading-relaxed">
+                Especialistas em estética automotiva com tecnologia avançada e
+                atendimento personalizado para cuidar do seu veículo.
+              </p>
+              <div className="flex space-x-4">
+                {/* Social Media Icons */}
+                <a href="#" className="social-icon" aria-label="Facebook">
+                  <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-blue-600 transition-colors">
+                    f
+                  </div>
+                </a>
+                <a href="#" className="social-icon" aria-label="Twitter">
+                  <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-blue-400 transition-colors">
+                    t
+                  </div>
+                </a>
+                <a href="#" className="social-icon" aria-label="LinkedIn">
+                  <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-blue-700 transition-colors">
+                    in
+                  </div>
+                </a>
+              </div>
             </div>
-            <p className="text-gray-600 mb-6">
-              © 2024 Prime System. Todos os direitos reservados.
+
+            {/* Quick Links */}
+            <div>
+              <h3 className="font-semibold mb-4">Serviços</h3>
+              <ul className="space-y-3">
+                <li>
+                  <a href="#" className="footer-link">
+                    Lavagem Premium
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="footer-link">
+                    Enceramento
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="footer-link">
+                    Proteção Cerâmica
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="footer-link">
+                    Detalhamento
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Support */}
+            <div>
+              <h3 className="font-semibold mb-4">Contato</h3>
+              <ul className="space-y-3">
+                <li>
+                  <a href="#" className="footer-link">
+                    Agendar Serviço
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="footer-link">
+                    Localização
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="footer-link">
+                    WhatsApp
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="footer-link">
+                    Orçamento
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
+            <p className="text-gray-400 text-sm">
+              © 2024 Prime Auto Care. Todos os direitos reservados.
             </p>
-            <div className="flex justify-center space-x-6">
-              <a href="#" className="text-gray-500 hover:text-blue-600 transition-colors">Termos</a>
-              <a href="#" className="text-gray-500 hover:text-blue-600 transition-colors">Privacidade</a>
-              <a href="#" className="text-gray-500 hover:text-blue-600 transition-colors">Suporte</a>
+            <div className="flex space-x-6 mt-4 md:mt-0">
+              <a href="#" className="footer-link text-sm">
+                Termos de Uso
+              </a>
+              <a href="#" className="footer-link text-sm">
+                Política de Privacidade
+              </a>
+              <a href="#" className="footer-link text-sm">
+                Cookies
+              </a>
             </div>
           </div>
         </div>

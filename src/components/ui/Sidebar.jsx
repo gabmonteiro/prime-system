@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 import { useAuth } from '../../context/authContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { 
@@ -9,7 +10,9 @@ import {
   ArrowRightOnRectangleIcon,
   ChartBarIcon,
   UserIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  XMarkIcon,
+  Bars3Icon
 } from '@heroicons/react/24/outline';
 import { 
   HomeIcon as HomeIconSolid, 
@@ -20,7 +23,11 @@ import {
   UserGroupIcon as UserGroupIconSolid
 } from '@heroicons/react/24/solid';
 
-const navigationLinks = [
+
+
+  export default function Sidebar() {
+
+    const navigationLinks = [
   { 
     href: '/dashboard', 
     label: 'Dashboard', 
@@ -58,10 +65,10 @@ const navigationLinks = [
   },
 ];
 
-export default function Sidebar() {
   const { logout, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [open, setOpen] = React.useState(false);
 
   function handleLogout() {
     logout();
@@ -72,23 +79,32 @@ export default function Sidebar() {
     return pathname === href;
   }
 
-  return (
-    <aside className="w-72 h-screen bg-gray-50 flex flex-col shadow-lg"> {/* Mudança 1: Fundo sutil e sombra mais forte */}
+  // Sidebar content for reuse
+  const sidebarContent = (
+    <>
       {/* Logo Section */}
-      <div className="p-8"> {/* Mudança 2: Mais padding, sem borda inferior */}
+      <div className="p-8 flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-md"> {/* Gradiente mais suave */}
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
             <ChartBarIcon className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-800">Prime System</h1> {/* Cor de texto mais sólida para o título */}
+            <h1 className="text-xl font-bold text-gray-800">Prime System</h1>
             <p className="text-xs text-gray-500 font-medium">Dashboard</p>
           </div>
         </div>
+        {/* Botão fechar só no mobile */}
+        <button
+          className="lg:hidden p-2 rounded-full hover:bg-gray-200 focus:outline-none"
+          onClick={() => setOpen(false)}
+          aria-label="Fechar menu"
+        >
+          <XMarkIcon className="w-6 h-6 text-gray-700" />
+        </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-5 py-6 space-y-2"> {/* Padding ajustado */}
+      <nav className="flex-1 px-5 py-6 space-y-2">
         <div className="mb-6">
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-3">
             Menu Principal
@@ -97,7 +113,6 @@ export default function Sidebar() {
             {navigationLinks.map(link => {
               const isActive = isActiveRoute(link.href);
               const Icon = isActive ? link.iconSolid : link.icon;
-              
               return (
                 <li
                   key={link.href}
@@ -106,41 +121,44 @@ export default function Sidebar() {
                 >
                   <button
                     type="button"
-                    onClick={() => router.push(link.href)}
+                    onClick={() => {
+                      router.push(link.href);
+                      setOpen(false); // Fecha sidebar no mobile ao navegar
+                    }}
                     className={`w-full flex items-center space-x-3 py-3 rounded-xl text-left transition-all duration-200 group relative
                       ${isActive 
-                        ? 'bg-blue-100 bg-opacity-70 text-blue-800' // Fundo mais visível, mas ainda suave, texto mais escuro
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 hover:bg-opacity-50' // Hover mais suave
+                        ? 'bg-blue-100 bg-opacity-70 text-blue-800'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 hover:bg-opacity-50'
                       }
                       ${isActive ? 'pl-2' : 'pl-3'}
                     `}
                   >
-                    {isActive && ( // Indicador de ativo: barra lateral elegante
+                    {isActive && (
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r-lg"></div>
                     )}
                     <Icon
                       className={`w-6 h-6 flex-shrink-0 transition-all duration-200 drop-shadow-sm ${
                         isActive 
-                          ? 'text-blue-600' // cor do ícone ativo
-                          : 'text-gray-400 group-hover:text-blue-500' // cor do ícone normal
+                          ? 'text-blue-600'
+                          : 'text-gray-400 group-hover:text-blue-500'
                       }`}
                       style={{
                         backgroundColor: isActive ? '#fff' : 'transparent',
                         borderRadius: isActive ? '0.5rem' : undefined,
                         padding: isActive ? '0.25rem' : undefined,
                         boxShadow: isActive ? '0 2px 8px rgba(59,130,246,0.15)' : undefined,
-                        color: isActive ? '#2563eb' : '#94a3b8', // azul para ativo, cinza para normal
+                        color: isActive ? '#2563eb' : '#94a3b8',
                         border: 'none'
                       }}
                     />
                     <div className="flex-1 min-w-0">
                       <div className={`font-medium text-sm ${
-                        isActive ? 'text-blue-800' : 'text-gray-700 group-hover:text-gray-900' // Cor do texto principal
+                        isActive ? 'text-blue-800' : 'text-gray-700 group-hover:text-gray-900'
                       }`}>
                         {link.label}
                       </div>
                       <div className={`text-xs ${
-                        isActive ? 'text-blue-600' : 'text-gray-500' // Cor da descrição
+                        isActive ? 'text-blue-600' : 'text-gray-500'
                       }`}>
                         {link.description}
                       </div>
@@ -154,9 +172,8 @@ export default function Sidebar() {
       </nav>
 
       {/* User Section */}
-      <div className="p-4 pt-0 space-y-4"> {/* Mudança 3: Mais padding, sem borda superior */}
-        {/* User Info */}
-        <div className="flex items-center space-x-3 p-3 bg-white rounded-xl shadow-sm border border-gray-100"> {/* Fundo branco, sombra sutil e borda muito leve */}
+      <div className="p-4 pt-0 space-y-4">
+        <div className="flex items-center space-x-3 p-3 bg-white rounded-xl shadow-sm border border-gray-100">
           <div className="w-10 h-10 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg flex items-center justify-center">
             <UserIcon className="w-5 h-5 text-blue-600" />
           </div>
@@ -169,8 +186,6 @@ export default function Sidebar() {
             </div>
           </div>
         </div>
-
-        {/* Logout Button */}
         <button
           onClick={handleLogout}
           className="w-full flex items-center space-x-3 px-3 py-3 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-200 group"
@@ -179,6 +194,33 @@ export default function Sidebar() {
           <span className="font-medium text-sm">Sair do Sistema</span>
         </button>
       </div>
-    </aside>
+    </>
   );
-}
+
+  return (
+    <>
+      {/* Botão de abrir sidebar no mobile */}
+      <button
+        className="fixed top-4 left-4 z-50 p-2 bg-white rounded-full shadow-lg border border-gray-200 lg:hidden"
+        onClick={() => setOpen(true)}
+        aria-label="Abrir menu"
+      >
+        <Bars3Icon className="w-7 h-7 text-gray-700" />
+      </button>
+
+      {/* Overlay e sidebar mobile */}
+      <div
+        className={`fixed inset-0 z-40 transition-all duration-300 ${open ? 'block' : 'hidden'} lg:hidden`}
+        style={{ background: open ? 'rgba(0,0,0,0.25)' : 'transparent' }}
+        onClick={() => setOpen(false)}
+      ></div>
+      <aside
+        className={`fixed top-0 left-0 z-50 h-full w-72 bg-gray-50 flex flex-col shadow-lg transform transition-transform duration-300 lg:static lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'} lg:w-72 lg:h-screen`}
+        style={{ minHeight: '100vh' }}
+      >
+        {sidebarContent}
+      </aside>
+    </>
+  );
+    
+  }

@@ -1,89 +1,140 @@
-'use client';
-import { useEffect, useState } from 'react';
-import { useAuth } from '../../../context/authContext';
-import { useRouter } from 'next/navigation';
-import DashboardLayout from '../DashboardLayout';
-import Modal from '../../../components/ui/Modal';
-import { 
-  PlusIcon, 
-  PencilIcon, 
+"use client";
+import { useEffect, useState } from "react";
+import { useAuth } from "../../../context/authContext";
+import { useRouter } from "next/navigation";
+import DashboardLayout from "../DashboardLayout";
+import Modal from "../../../components/ui/Modal";
+import Pagination from "../../../components/ui/Pagination";
+import {
+  PlusIcon,
+  PencilIcon,
   TrashIcon,
   UserIcon,
-  EnvelopeIcon,
   ShieldCheckIcon,
-  EyeIcon,
-  EyeSlashIcon,
-  UserGroupIcon
-} from '@heroicons/react/24/outline';
+} from "@heroicons/react/24/outline";
 
 export default function UsuariosPage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    }
-  }, [user, loading, router]);
-
   const [usuarios, setUsuarios] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ nome: '', email: '', senha: '', isAdmin: false });
   const [editId, setEditId] = useState(null);
-  const [showPassword, setShowPassword] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    isAdmin: false,
+  });
+  const [toastState, setToastState] = useState({
+    show: false,
+    message: "",
+    type: "success",
+  });
+
+  const { user } = useAuth();
+  const router = useRouter();
+
+  // Show toast notification
+  const showToast = (message, type = "success") => {
+    setToastState({ show: true, message, type });
+    setTimeout(() => {
+      setToastState((prev) => ({ ...prev, show: false }));
+    }, 4000);
+  };
 
   useEffect(() => {
-    fetchData();
-  }, [modalOpen]);
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    if (user && !user.isAdmin) {
+      router.push("/dashboard");
+      return;
+    }
+    if (user && user.isAdmin) {
+      fetchData();
+    }
+  }, [user, router]);
 
-  function fetchData() {
-    fetch('/api/user')
-      .then(res => res.json())
-      .then(data => setUsuarios(data))
-      .catch(err => console.error('Erro ao buscar usuários:', err));
+  async function fetchData() {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/user");
+      const data = await response.json();
+
+      if (response.ok) {
+        // Aceita tanto array direto quanto objeto { users: [...] }
+        const usersArray = Array.isArray(data) ? data : (data.users || []);
+        const sortedUsers = usersArray.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setUsuarios(sortedUsers);
+      } else {
+        throw new Error(data.error || "Erro ao carregar usuários");
+      }
+    } catch (error) {
+      console.error("Erro ao carregar usuários:", error);
+      showToast("Erro ao carregar usuários: " + error.message, "error");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  function handleFormChange(e) {
+  function handleInputChange(e) {
     const { name, value, type, checked } = e.target;
-    setForm({ 
-      ...form, 
-      [name]: type === 'checkbox' ? checked : value 
+    setForm({
+      ...form,
+      [name]: type === "checkbox" ? checked : value,
     });
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const payload = { ...form };
-    
-    const url = '/api/user';
-    const method = editId ? 'PUT' : 'POST';
-    const body = editId ? { id: editId, ...payload } : payload;
+    setIsLoading(true);
 
     try {
+      const payload = { ...form };
+
+      const url = "/api/user";
+      const method = editId ? "PUT" : "POST";
+      const body = editId ? { id: editId, ...payload } : payload;
+
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
       });
 
-      if (response.ok) {
-        closeModal();
-        fetchData();
-      } else {
-        const error = await response.text();
-        alert('Erro ao salvar usuário: ' + error);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao processar requisição");
       }
+
+      closeModal();
+      fetchData();
+      showToast(
+        editId
+          ? "Usuário atualizado com sucesso!"
+          : "Usuário criado com sucesso!",
+        "success",
+      );
     } catch (error) {
-      console.error('Erro:', error);
-      alert('Erro ao salvar usuário');
+      console.error("Erro ao salvar usuário:", error);
+      showToast("Erro ao salvar usuário: " + error.message, "error");
+    } finally {
+      setIsLoading(false);
     }
   }
 
   function handleEdit(usuario) {
     setForm({
-      nome: usuario.nome || '',
-      email: usuario.email || '',
-      senha: '', // Não carregar senha existente
+      name: usuario.name || "",
+      email: usuario.email || "",
+      password: "", // Não carregar senha existente
       isAdmin: usuario.isAdmin || false,
     });
     setEditId(usuario._id);
@@ -91,168 +142,278 @@ export default function UsuariosPage() {
   }
 
   async function handleDelete(id) {
-    if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
+    if (window.confirm("Tem certeza que deseja excluir este usuário?")) {
       try {
-        await fetch('/api/user', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id })
+        const response = await fetch(`/api/user?id=${id}`, {
+          method: "DELETE",
         });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Erro ao deletar usuário");
+        }
+
         fetchData();
+        showToast("Usuário excluído com sucesso!", "success");
       } catch (error) {
-        console.error('Erro ao deletar usuário:', error);
-        alert('Erro ao deletar usuário');
+        console.error("Erro ao deletar usuário:", error);
+        showToast("Erro ao deletar usuário: " + error.message, "error");
       }
     }
   }
 
-  function closeModal() {
-    setModalOpen(false);
+  function openModal() {
+    setForm({ name: "", email: "", password: "", isAdmin: false });
     setEditId(null);
-    setForm({ nome: '', email: '', senha: '', isAdmin: false });
-    setShowPassword(false);
+    setModalOpen(true);
   }
 
-  const admins = usuarios.filter(u => u.isAdmin);
-  const regularUsers = usuarios.filter(u => !u.isAdmin);
+  function closeModal() {
+    setModalOpen(false);
+    setForm({ name: "", email: "", password: "", isAdmin: false });
+    setEditId(null);
+  }
 
-  if (!user) {
+  // Paginação
+  const totalPages = Math.ceil(usuarios.length / itemsPerPage);
+  const currentUsuarios = usuarios.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  if (!user?.isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando...</p>
+      <DashboardLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Acesso Negado
+            </h2>
+            <p className="text-gray-600">
+              Você não tem permissão para acessar esta página.
+            </p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Usuários</h1>
-            <p className="text-gray-600">Gerencie usuários do sistema e suas permissões</p>
-          </div>
-          
-          <button
-            onClick={() => setModalOpen(true)}
-            className="btn-primary flex items-center space-x-2 mt-4 md:mt-0"
+      <div className="p-6">
+        {/* Toast Notification */}
+        {toastState.show && (
+          <div
+            className={`fixed top-4 right-4 z-50 max-w-sm w-full sm:right-4 sm:left-auto sm:translate-x-0 left-1/2 -translate-x-1/2 ${
+              toastState.type === "success" ? "bg-green-500" : "bg-red-500"
+            } text-white p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out`}
           >
-            <PlusIcon style={{ width: "16px", height: "16px" }} />
-            <span>Novo Usuário</span>
-          </button>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="card p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-1">Total de Usuários</h3>
-                <p className="text-2xl font-bold text-blue-600">{usuarios.length}</p>
-              </div>
-              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                <UserGroupIcon className="text-blue-600" style={{ width: "20px", height: "20px" }} />
-              </div>
+            <div className="flex items-center">
+              <span className="flex-1">{toastState.message}</span>
+              <button
+                onClick={() =>
+                  setToastState((prev) => ({ ...prev, show: false }))
+                }
+                className="ml-2 text-white hover:text-gray-200"
+              >
+                ×
+              </button>
             </div>
-            <div className="mt-4 flex items-center text-sm text-gray-600">
-              <span>usuários registrados</span>
+          </div>
+        )}
+
+        <div className="w-full mx-auto">
+          {/* Header */}
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <UserIcon className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    Gerenciar Usuários
+                  </h1>
+                  <p className="text-gray-600">
+                    Administre usuários do sistema
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={openModal}
+                className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Novo Usuário
+              </button>
             </div>
           </div>
 
-          <div className="card p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-1">Administradores</h3>
-                <p className="text-2xl font-bold text-green-600">{admins.length}</p>
+          {/* Content */}
+          <div className="bg-white rounded-lg shadow-sm">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-gray-600">Carregando usuários...</span>
+                </div>
               </div>
-              <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                <ShieldCheckIcon className="text-green-600" style={{ width: "20px", height: "20px" }} />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center text-sm text-gray-600">
-              <span>com privilégios administrativos</span>
-            </div>
-          </div>
-
-          <div className="card p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-1">Usuários Regulares</h3>
-                <p className="text-2xl font-bold text-purple-600">{regularUsers.length}</p>
-              </div>
-              <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                <UserIcon className="text-purple-600" style={{ width: "20px", height: "20px" }} />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center text-sm text-gray-600">
-              <span>usuários padrão</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Users List */}
-        <div className="card">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Lista de Usuários</h3>
-          </div>
-          
-          <div className="divide-y divide-gray-200">
-            {usuarios.length === 0 ? (
-              <div className="p-8 text-center">
-                <UserGroupIcon className="text-gray-400 mx-auto mb-4" style={{ width: "32px", height: "32px" }} />
-                <p className="text-gray-500 text-lg font-medium">Nenhum usuário cadastrado</p>
-                <p className="text-gray-400 text-sm">Clique em "Novo Usuário" para começar</p>
+            ) : usuarios.length === 0 ? (
+              <div className="text-center py-12">
+                <UserIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Nenhum usuário encontrado
+                </h3>
+                <p className="text-gray-600">
+                  Comece criando o primeiro usuário do sistema.
+                </p>
               </div>
             ) : (
-              usuarios.map(u => (
-                <div key={u._id} className="p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <UserIcon className="text-blue-600" style={{ width: "20px", height: "20px" }} />
-                      </div>
-                      
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-1">
-                          <h4 className="text-lg font-semibold text-gray-900">{u.nome}</h4>
-                          {u.isAdmin && (
-                            <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center space-x-1">
-                              <ShieldCheckIcon className="w-3 h-3" />
-                              <span>Admin</span>
+              <div className="overflow-hidden">
+                {/* Mobile Card View */}
+                <div className="block sm:hidden">
+                  <div className="p-4 space-y-4">
+                    {currentUsuarios.map((usuario) => (
+                      <div
+                        key={usuario._id}
+                        className="bg-gray-50 rounded-lg shadow-md border border-gray-200 p-4"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-blue-100 rounded-full">
+                              <UserIcon className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-medium text-gray-900">
+                                {usuario.name}
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                {usuario.email}
+                              </p>
+                            </div>
+                          </div>
+                          {usuario.isAdmin && (
+                            <span className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
+                              <ShieldCheckIcon className="h-3 w-3 mr-1" />
+                              Admin
                             </span>
                           )}
                         </div>
-                        
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <EnvelopeIcon className="text-gray-400" style={{ width: "16px", height: "16px" }} />
-                          <span>{u.email}</span>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEdit(usuario)}
+                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
+                          >
+                            <PencilIcon className="h-4 w-4 mr-1" />
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleDelete(usuario._id)}
+                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
+                          >
+                            <TrashIcon className="h-4 w-4 mr-1" />
+                            Excluir
+                          </button>
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleEdit(u)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Editar"
-                      >
-                        <PencilIcon style={{ width: "16px", height: "16px" }} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(u._id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Excluir"
-                      >
-                        <TrashIcon style={{ width: "16px", height: "16px" }} />
-                      </button>
-                    </div>
+                    ))}
                   </div>
                 </div>
-              ))
+
+                {/* Desktop Table View */}
+                <div className="hidden sm:block">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Usuário
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Email
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tipo
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Ações
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {currentUsuarios.map((usuario) => (
+                        <tr key={usuario._id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10">
+                                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                  <UserIcon className="h-6 w-6 text-blue-600" />
+                                </div>
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {usuario.name}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {usuario.email}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {usuario.isAdmin ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                <ShieldCheckIcon className="h-3 w-3 mr-1" />
+                                Administrador
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                <UserIcon className="h-3 w-3 mr-1" />
+                                Usuário
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex items-center justify-end space-x-2">
+                              <button
+                                onClick={() => handleEdit(usuario)}
+                                className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
+                                title="Editar usuário"
+                              >
+                                <PencilIcon className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(usuario._id)}
+                                className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
+                                title="Excluir usuário"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Paginação */}
+                {usuarios.length > 0 && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    itemsPerPage={itemsPerPage}
+                    totalItems={usuarios.length}
+                  />
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -261,93 +422,114 @@ export default function UsuariosPage() {
         <Modal
           isOpen={modalOpen}
           onClose={closeModal}
-          title={editId ? 'Editar Usuário' : 'Novo Usuário'}
-          size="md"
+          title={editId ? "Editar Usuário" : "Novo Usuário"}
         >
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Nome Completo
-              </label>
-              <input
-                name="nome"
-                value={form.nome}
-                onChange={handleFormChange}
-                placeholder="Ex: João Silva"
-                required
-                className="input-field"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                E-mail
-              </label>
-              <input
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={handleFormChange}
-                placeholder="joao@exemplo.com"
-                required
-                className="input-field"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Senha {editId && <span className="text-gray-500 font-normal">(deixe vazio para manter atual)</span>}
-              </label>
-              <div className="relative">
-                <input
-                  name="senha"
-                  type={showPassword ? 'text' : 'password'}
-                  value={form.senha}
-                  onChange={handleFormChange}
-                  placeholder="••••••••"
-                  required={!editId}
-                  className="input-field pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+            <div className="grid grid-cols-1 gap-6">
+              <div>
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  {showPassword ? (
-                    <EyeSlashIcon className="text-gray-400" style={{ width: "16px", height: "16px" }} />
-                  ) : (
-                    <EyeIcon className="text-gray-400" style={{ width: "16px", height: "16px" }} />
-                  )}
-                </button>
+                  Nome Completo
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={form.name}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                  placeholder="Digite o nome completo"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Email
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                  placeholder="Digite o email"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  {editId
+                    ? "Nova Senha (deixe em branco para manter a atual)"
+                    : "Senha"}
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={form.password}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required={!editId}
+                  placeholder={
+                    editId
+                      ? "Deixe em branco para não alterar"
+                      : "Digite a senha"
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    name="isAdmin"
+                    checked={form.isAdmin}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Administrador
+                  </span>
+                </label>
+                <p className="text-xs text-gray-500 mt-1">
+                  Administradores têm acesso completo ao sistema
+                </p>
               </div>
             </div>
-            
-            <div className="flex items-center space-x-3">
-              <input
-                type="checkbox"
-                name="isAdmin"
-                checked={form.isAdmin}
-                onChange={handleFormChange}
-                className="text-blue-600 bg-gray-50 border-gray-300 rounded focus:ring-blue-500" style={{ width: "16px", height: "16px" }}
-              />
-              <label className="text-sm font-medium text-gray-700">
-                Conceder privilégios de administrador
-              </label>
-            </div>
-            
+
             <div className="flex space-x-3 pt-6 border-t border-gray-200">
               <button
                 type="button"
                 onClick={closeModal}
                 className="btn-secondary flex-1"
+                disabled={isLoading}
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 className="btn-primary flex-1"
+                disabled={isLoading}
               >
-                {editId ? 'Atualizar' : 'Criar'} Usuário
+                {isLoading ? (
+                  <span className="flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Salvando...
+                  </span>
+                ) : (
+                  `${editId ? "Atualizar" : "Criar"} Usuário`
+                )}
               </button>
             </div>
           </form>

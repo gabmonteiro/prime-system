@@ -1,5 +1,10 @@
 // components/ui/InputField.jsx
-import { HiOutlineMail, HiOutlineKey, HiOutlineUser, HiOutlinePhone } from "react-icons/hi2";
+import {
+  HiOutlineMail,
+  HiOutlineKey,
+  HiOutlineUser,
+  HiOutlinePhone,
+} from "react-icons/hi2";
 
 const iconMap = {
   email: HiOutlineMail,
@@ -8,15 +13,15 @@ const iconMap = {
   tel: HiOutlinePhone,
 };
 
-export function InputField({ 
-  label, 
-  type = "text", 
-  value, 
-  onChange, 
-  placeholder, 
+export function InputField({
+  label,
+  type = "text",
+  value,
+  onChange,
+  placeholder,
   required = false,
   rightElement,
-  className = ""
+  className = "",
 }) {
   const IconComponent = iconMap[type] || HiOutlineUser;
 

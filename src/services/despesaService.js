@@ -1,4 +1,4 @@
-import Despesa from '../models/despesa';
+import Despesa from "../models/despesa";
 
 export async function createDespesa(data) {
   return await Despesa.create(data);

@@ -1,4 +1,4 @@
-import TipoServico from '../models/tipoServico';
+import TipoServico from "../models/tipoServico";
 
 export async function createTipoServico(data) {
   return await TipoServico.create(data);

@@ -1,6 +1,10 @@
 "use client";
-import { useAuth } from '../context/authContext';
-import { BellIcon, Cog6ToothIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { useAuth } from "../context/authContext";
+import {
+  BellIcon,
+  Cog6ToothIcon,
+  MagnifyingGlassIcon,
+} from "@heroicons/react/24/outline";
 
 export default function Header() {
   const { user } = useAuth();
@@ -36,18 +40,15 @@ export default function Header() {
         <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
           <div className="text-right">
             <div className="text-sm font-medium text-gray-900">
-              {user?.name || 'Usuário'}
+              {user?.name || "Usuário"}
             </div>
-            <div className="text-xs text-gray-500">
-              Administrador
-            </div>
+            <div className="text-xs text-gray-500">Administrador</div>
           </div>
           <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-semibold text-sm">
-            {(user?.name || user?.email || 'U')[0].toUpperCase()}
+            {(user?.name || user?.email || "U")[0].toUpperCase()}
           </div>
         </div>
       </div>
     </header>
   );
 }
-

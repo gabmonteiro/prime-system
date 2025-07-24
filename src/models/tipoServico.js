@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const TipoServicoSchema = new mongoose.Schema({
   nome: {
@@ -21,12 +21,13 @@ const TipoServicoSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now,
-  }
+  },
 });
 
-TipoServicoSchema.pre('save', function(next) {
+TipoServicoSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
 
-export default mongoose.models.TipoServico || mongoose.model('TipoServico', TipoServicoSchema);
+export default mongoose.models.TipoServico ||
+  mongoose.model("TipoServico", TipoServicoSchema);

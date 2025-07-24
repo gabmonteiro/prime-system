@@ -1,438 +1,906 @@
-'use client';
-import { useEffect, useState } from 'react';
-import { useAuth } from '../../../context/authContext';
-import { useRouter } from 'next/navigation';
-import DashboardLayout from '../DashboardLayout';
-import { 
-  PlusIcon, 
-  WrenchScrewdriverIcon, 
-  UserIcon, 
+"use client";
+import { useEffect, useState } from "react";
+import { useAuth } from "../../../context/authContext";
+import { useRouter } from "next/navigation";
+import DashboardLayout from "../DashboardLayout";
+import Modal from "../../../components/ui/Modal";
+import Pagination from "../../../components/ui/Pagination";
+import {
+  PlusIcon,
+  WrenchScrewdriverIcon,
+  UserIcon,
   CalendarIcon,
   CurrencyDollarIcon,
   PencilIcon,
   TrashIcon,
-  XMarkIcon 
-} from '@heroicons/react/24/outline';
-
-function Modal({ open, onClose, children }) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="card-enhanced shadow-strong max-w-md w-full max-h-[90vh] overflow-y-auto animate-fadeInScale">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-800">Modal</h3>
-          <button 
-            onClick={onClose}
-            className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors"
-          >
-            <XMarkIcon className="heroicon-md text-gray-600" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
+  ChevronRightIcon,
+  TagIcon,
+  UsersIcon,
+} from "@heroicons/react/24/outline";
 
 export default function ServicosPage() {
+  // Estado para edição/exclusão de tipo de serviço
+  const [selectedTipoId, setSelectedTipoId] = useState("");
+  const [tipoForm, setTipoForm] = useState({ nome: "", valor: "", desc: "" });
+  const [tipoLoading, setTipoLoading] = useState(false);
   const { user, loading } = useAuth();
   const router = useRouter();
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    }
-  }, [user, loading, router]);
+
   const [servicos, setServicos] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTipoOpen, setModalTipoOpen] = useState(false);
-  const [form, setForm] = useState({ cliente: '', nomeCarro: '', tipoServico: '', data: '', participantes: [] });
+  const [form, setForm] = useState({
+    cliente: "",
+    nomeCarro: "",
+    tipoServico: "",
+    valorPersonalizado: "",
+    data: "",
+    participantes: [],
+  });
   const [tipos, setTipos] = useState([]);
   const [editId, setEditId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [toastState, setToastState] = useState({
+    show: false,
+    message: "",
+    type: "success",
+  });
 
   useEffect(() => {
-    fetch('/api/servico')
-      .then(res => res.json())
-      .then(data => setServicos(data));
-    fetch('/api/tipoServico')
-      .then(res => res.json())
-      .then(data => setTipos(data));
-  }, [modalOpen, modalTipoOpen]);
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
+
+  useEffect(() => {
+    if (user) {
+      fetchData();
+      fetchTipos();
+    }
+  }, [user]);
+
+  // Show toast notification
+  const showToast = (message, type = "success") => {
+    setToastState({ show: true, message, type });
+    setTimeout(() => {
+      setToastState((prev) => ({ ...prev, show: false }));
+    }, 4000);
+  };
+
+  async function fetchData() {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/servico");
+      const data = await response.json();
+      // Ordenar por data (mais recente primeiro)
+      const sortedData = (data || []).sort(
+        (a, b) => new Date(b.data) - new Date(a.data),
+      );
+      setServicos(sortedData);
+    } catch (error) {
+      console.error("Erro ao carregar serviços:", error);
+      showToast("Erro ao carregar serviços", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function fetchTipos() {
+    try {
+      const response = await fetch("/api/tipoServico");
+      const data = await response.json();
+      setTipos(data || []);
+    } catch (error) {
+      console.error("Erro ao carregar tipos de serviço:", error);
+    }
+  }
 
   function handleFormChange(e) {
-    const { name, value, multiple, options } = e.target;
-    if (multiple) {
-      const values = Array.from(options).filter(o => o.selected).map(o => o.value);
-      setForm({ ...form, [name]: values });
-    } else {
-      setForm({ ...form, [name]: value });
-    }
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
+  }
+
+  function handleParticipanteChange(participante, isChecked) {
+    const newParticipantes = isChecked
+      ? [...form.participantes, participante]
+      : form.participantes.filter((p) => p !== participante);
+    setForm({ ...form, participantes: newParticipantes });
+  }
+
+  function addParticipante() {
+    // Não é mais necessário com checkboxes
+  }
+
+  function removeParticipante(index) {
+    // Não é mais necessário com checkboxes
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const payload = {
-      ...form,
-      participantes: form.participantes,
-      data: form.data ? new Date(form.data) : undefined,
-    };
-    if (editId) {
-      await fetch('/api/servico', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editId, ...payload })
-      });
-    } else {
-      await fetch('/api/servico', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+    setIsLoading(true);
+
+    try {
+      const payload = {
+        ...form,
+        // Converter valorPersonalizado para número se preenchido
+        valorPersonalizado: form.valorPersonalizado
+          ? Number(form.valorPersonalizado)
+          : null,
+      };
+
+      if (editId) {
+        await fetch("/api/servico", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editId, ...payload }),
+        });
+        showToast("Serviço atualizado com sucesso!", "success");
+      } else {
+        await fetch("/api/servico", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showToast("Serviço criado com sucesso!", "success");
+      }
+
+      closeModal();
+      fetchData();
+    } catch (error) {
+      console.error("Erro ao salvar serviço:", error);
+      showToast("Erro ao salvar serviço", "error");
+    } finally {
+      setIsLoading(false);
     }
-    setModalOpen(false);
-    setForm({ cliente: '', nomeCarro: '', tipoServico: '', data: '', participantes: [] });
-    setEditId(null);
   }
+
   function handleEdit(servico) {
     setForm({
-      cliente: servico.cliente || '',
-      nomeCarro: servico.nomeCarro || '',
-      tipoServico: servico.tipoServico?._id || servico.tipoServico || '',
-      data: servico.data ? new Date(servico.data).toISOString().slice(0, 10) : '',
-      participantes: Array.isArray(servico.participantes) ? servico.participantes : [],
+      cliente: servico.cliente || "",
+      nomeCarro: servico.nomeCarro || "",
+      tipoServico:
+        typeof servico.tipoServico === "object"
+          ? servico.tipoServico?._id
+          : servico.tipoServico || "",
+      valorPersonalizado: servico.valorPersonalizado || "",
+      data: servico.data
+        ? new Date(servico.data).toISOString().slice(0, 10)
+        : "",
+      participantes: Array.isArray(servico.participantes)
+        ? servico.participantes
+        : [],
     });
     setEditId(servico._id);
     setModalOpen(true);
   }
 
   async function handleDelete(id) {
-    if (window.confirm('Tem certeza que deseja excluir este serviço?')) {
-      await fetch('/api/servico', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
-      });
-      setServicos(servicos.filter(s => s._id !== id));
+    if (window.confirm("Tem certeza que deseja excluir este serviço?")) {
+      try {
+        await fetch("/api/servico", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        });
+        setServicos(servicos.filter((s) => s._id !== id));
+        showToast("Serviço excluído com sucesso!", "success");
+      } catch (error) {
+        console.error("Erro ao excluir serviço:", error);
+        showToast("Erro ao excluir serviço", "error");
+      }
     }
   }
 
   async function handleTipoSubmit(e) {
     e.preventDefault();
-    const nome = e.target.nome.value;
-    const valor = Number(e.target.valor.value);
-    const desc = e.target.desc.value;
-    await fetch('/api/tipoServico', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, valor, desc })
-    });
-    setModalTipoOpen(false);
+    setTipoLoading(true);
+    try {
+      const nome = tipoForm.nome;
+      const valor = Number(tipoForm.valor);
+      const desc = tipoForm.desc;
+      if (selectedTipoId) {
+        // Editar tipo existente
+        await fetch("/api/tipoServico", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: selectedTipoId, nome, valor, desc }),
+        });
+        showToast("Tipo de serviço atualizado com sucesso!", "success");
+      } else {
+        // Criar novo tipo
+        await fetch("/api/tipoServico", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nome, valor, desc }),
+        });
+        showToast("Tipo de serviço criado com sucesso!", "success");
+      }
+      setModalTipoOpen(false);
+      setSelectedTipoId("");
+      setTipoForm({ nome: "", valor: "", desc: "" });
+      fetchTipos();
+    } catch (error) {
+      console.error("Erro ao salvar tipo de serviço:", error);
+      showToast("Erro ao salvar tipo de serviço", "error");
+    } finally {
+      setTipoLoading(false);
+    }
   }
+
+  // Excluir tipo de serviço
+  async function handleTipoDelete() {
+    if (!selectedTipoId) return;
+    if (!window.confirm("Tem certeza que deseja excluir este tipo de serviço?"))
+      return;
+    setTipoLoading(true);
+    try {
+      await fetch("/api/tipoServico", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selectedTipoId }),
+      });
+      showToast("Tipo de serviço excluído com sucesso!", "success");
+      setSelectedTipoId("");
+      setTipoForm({ nome: "", valor: "", desc: "" });
+      setModalTipoOpen(false);
+      fetchTipos();
+    } catch (error) {
+      console.error("Erro ao excluir tipo de serviço:", error);
+      showToast("Erro ao excluir tipo de serviço", "error");
+    } finally {
+      setTipoLoading(false);
+    }
+  }
+
+  // Ao selecionar um tipo, preencher o form
+  function handleTipoSelect(e) {
+    const id = e.target.value;
+    setSelectedTipoId(id);
+    if (id) {
+      const tipo = tipos.find((t) => t._id === id);
+      setTipoForm({
+        nome: tipo?.nome || "",
+        valor: tipo?.valor || "",
+        desc: tipo?.desc || "",
+      });
+    } else {
+      setTipoForm({ nome: "", valor: "", desc: "" });
+    }
+  }
+
+  // Atualizar campos do form de tipo
+  function handleTipoFormChange(e) {
+    const { name, value } = e.target;
+    setTipoForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function openModal() {
+    const today = new Date();
+    const localDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    )
+      .toISOString()
+      .slice(0, 10);
+    setForm({
+      cliente: "",
+      nomeCarro: "",
+      tipoServico: "",
+      valorPersonalizado: "",
+      data: localDate,
+      participantes: [],
+    });
+    setEditId(null);
+    setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setForm({
+      cliente: "",
+      nomeCarro: "",
+      tipoServico: "",
+      valorPersonalizado: "",
+      data: "",
+      participantes: [],
+    });
+    setEditId(null);
+  }
+
+  // Paginação
+  const totalPages = Math.ceil(servicos.length / itemsPerPage);
+  const currentServicos = servicos.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <UserIcon className="heroicon-lg text-blue-600" />
+            <UserIcon className="h-8 w-8 text-blue-600" />
           </div>
           <p className="text-lg text-gray-600">Carregando...</p>
         </div>
       </div>
     );
   }
-  
+
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-heading-2 text-gray-800 mb-2">Gerenciar Serviços</h1>
-            <p className="text-gray-600">Controle todos os serviços realizados</p>
-          </div>
-          <div className="flex gap-3">
-            <button 
-              onClick={() => setModalOpen(true)} 
-              className="btn-primary flex items-center gap-2 shadow-soft"
-            >
-              <PlusIcon className="heroicon-md" />
-              Novo Serviço
-            </button>
-            <button 
-              onClick={() => setModalTipoOpen(true)} 
-              className="btn-secondary flex items-center gap-2"
-            >
-              <WrenchScrewdriverIcon className="heroicon-md" />
-              Novo Tipo
-            </button>
-          </div>
-        </div>
-
-        {/* Stats Card */}
-        <div className="card-stats shadow-soft animate-slideInUp">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Total de Serviços</p>
-              <p className="text-financial text-metric text-positive">
-                R$ {servicos.reduce((acc, s) => acc + (s.tipoServico?.valor ? Number(s.tipoServico.valor) : 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center shadow-soft">
-              <CurrencyDollarIcon className="heroicon-lg text-blue-600" />
+      <div className="p-6">
+        {/* Toast Notification */}
+        {toastState.show && (
+          <div
+            className={`fixed top-4 right-4 z-50 max-w-sm w-full sm:right-4 sm:left-auto sm:translate-x-0 left-1/2 -translate-x-1/2 ${
+              toastState.type === "success" ? "bg-green-500" : "bg-red-500"
+            } text-white p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out`}
+          >
+            <div className="flex items-center">
+              <span className="flex-1">{toastState.message}</span>
+              <button
+                onClick={() =>
+                  setToastState((prev) => ({ ...prev, show: false }))
+                }
+                className="ml-2 text-white hover:text-gray-200"
+              >
+                ×
+              </button>
             </div>
           </div>
-          <div className="flex items-center justify-between pt-4 border-t border-blue-100 mt-4">
-            <span className="text-sm text-gray-600">{servicos.length} serviços cadastrados</span>
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              Ativo
-            </span>
-          </div>
-        </div>
+        )}
 
-        {/* Services List */}
-        <div className="card-enhanced shadow-medium animate-slideInUp" style={{ animationDelay: '0.1s' }}>
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-800">Lista de Serviços</h3>
-            <span className="text-sm text-gray-500">{servicos.length} total</span>
-          </div>
-          
-          <div className="space-y-4">
-            {servicos.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <WrenchScrewdriverIcon className="heroicon-lg text-gray-400" />
+        <div className="w-full mx-auto">
+          {/* Header */}
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <WrenchScrewdriverIcon className="h-6 w-6 text-blue-600" />
                 </div>
-                <p className="text-gray-500">Nenhum serviço cadastrado</p>
-                <p className="text-sm text-gray-400 mt-1">Clique em "Novo Serviço" para começar</p>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    Gerenciar Serviços
+                  </h1>
+                  <p className="text-gray-600">
+                    Controle todos os serviços prestados
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => setModalTipoOpen(true)}
+                  className="inline-flex items-center justify-center px-4 py-2 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  <TagIcon className="h-5 w-5 mr-2" />
+                  Novo Tipo
+                </button>
+                <button
+                  onClick={openModal}
+                  className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <PlusIcon className="h-5 w-5 mr-2" />
+                  Novo Serviço
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="bg-white rounded-lg shadow-sm">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-gray-600">Carregando serviços...</span>
+                </div>
+              </div>
+            ) : servicos.length === 0 ? (
+              <div className="text-center py-12">
+                <WrenchScrewdriverIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Nenhum serviço encontrado
+                </h3>
+                <p className="text-gray-600">
+                  Comece registrando o primeiro serviço realizado.
+                </p>
               </div>
             ) : (
-              servicos.map(s => (
-                <div key={s._id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200 hover:shadow-soft transition-all duration-200">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <UserIcon className="heroicon-md text-blue-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900">{s.cliente}</h4>
-                        <p className="text-sm text-gray-600">{s.nomeCarro}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        <WrenchScrewdriverIcon className="heroicon-sm text-gray-400" />
-                        <span className="text-gray-600">Tipo:</span>
-                        <span className="font-medium">{s.tipoServico?.nome || s.tipoServico}</span>
-                      </div>
-                      
-                      {s.tipoServico?.valor !== undefined && (
-                        <div className="flex items-center gap-2">
-                          <CurrencyDollarIcon className="heroicon-sm text-gray-400" />
-                          <span className="text-gray-600">Valor:</span>
-                          <span className="font-medium text-positive">
-                            R$ {Number(s.tipoServico.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
+              <div className="overflow-hidden">
+                {/* Mobile Card View */}
+                <div className="block lg:hidden">
+                  <div className="p-4 space-y-4">
+                    {currentServicos.map((servico) => (
+                      <div
+                        key={servico._id}
+                        className="bg-gray-50 rounded-lg shadow-md border border-gray-200 p-4"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-blue-100 rounded-full">
+                              <WrenchScrewdriverIcon className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-medium text-gray-900">
+                                {servico.cliente}
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                {servico.nomeCarro}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {typeof servico.tipoServico === "object"
+                                  ? servico.tipoServico?.nome
+                                  : servico.tipoServico}
+                              </p>
+                              <p className="text-sm font-medium text-green-600 mt-1">
+                                R${" "}
+                                {(
+                                  servico.valorPersonalizado ||
+                                  servico.tipoServico?.valor ||
+                                  0
+                                ).toLocaleString("pt-BR", {
+                                  minimumFractionDigits: 2,
+                                })}
+                                {servico.valorPersonalizado && (
+                                  <span className="text-xs text-blue-600 ml-1">
+                                    (personalizado)
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-medium text-gray-900">
+                              {new Date(servico.data).toLocaleDateString(
+                                "pt-BR",
+                              )}
+                            </div>
+                            {servico.participantes &&
+                              servico.participantes.length > 0 && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {servico.participantes.join(", ")}
+                                </div>
+                              )}
+                          </div>
                         </div>
-                      )}
-                      
-                      <div className="flex items-center gap-2">
-                        <CalendarIcon className="heroicon-sm text-gray-400" />
-                        <span className="text-gray-600">Data:</span>
-                        <span className="font-medium">{s.data ? new Date(s.data).toLocaleDateString('pt-BR') : '-'}</span>
-                      </div>
-                    </div>
-                    
-                    {Array.isArray(s.participantes) && s.participantes.length > 0 && (
-                      <div className="mt-3 flex items-center gap-2">
-                        <span className="text-xs text-gray-500">Participantes:</span>
-                        <div className="flex gap-1">
-                          {s.participantes.map((participante, index) => (
-                            <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                              {participante}
-                            </span>
-                          ))}
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEdit(servico)}
+                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
+                          >
+                            <PencilIcon className="h-4 w-4 mr-1" />
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleDelete(servico._id)}
+                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
+                          >
+                            <TrashIcon className="h-4 w-4 mr-1" />
+                            Excluir
+                          </button>
                         </div>
                       </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex gap-2 ml-4">
-                    <button 
-                      onClick={() => handleEdit(s)} 
-                      className="w-9 h-9 bg-yellow-100 rounded-lg flex items-center justify-center hover:bg-yellow-200 transition-colors"
-                      title="Editar serviço"
-                    >
-                      <PencilIcon className="heroicon-sm text-yellow-600" />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(s._id)} 
-                      className="w-9 h-9 bg-red-100 rounded-lg flex items-center justify-center hover:bg-red-200 transition-colors"
-                      title="Excluir serviço"
-                    >
-                      <TrashIcon className="heroicon-sm text-red-600" />
-                    </button>
+                    ))}
                   </div>
                 </div>
-              ))
+
+                {/* Desktop Table View */}
+                <div className="hidden lg:block">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Cliente / Veículo
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tipo de Serviço
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Valor
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Data
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Participantes
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Ações
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {currentServicos.map((servico) => (
+                        <tr key={servico._id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10">
+                                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                  <WrenchScrewdriverIcon className="h-6 w-6 text-blue-600" />
+                                </div>
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {servico.cliente}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {servico.nomeCarro}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {typeof servico.tipoServico === "object"
+                                ? servico.tipoServico?.nome
+                                : servico.tipoServico}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              R${" "}
+                              {(
+                                servico.valorPersonalizado ||
+                                servico.tipoServico?.valor ||
+                                0
+                              ).toLocaleString("pt-BR", {
+                                minimumFractionDigits: 2,
+                              })}
+                              {servico.valorPersonalizado && (
+                                <span className="ml-1 text-xs text-blue-600">
+                                  (personalizado)
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {new Date(servico.data).toLocaleDateString(
+                                "pt-BR",
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {servico.participantes &&
+                            servico.participantes.length > 0 ? (
+                              <div className="flex items-center">
+                                <UsersIcon className="h-4 w-4 text-gray-400 mr-1" />
+                                <span className="text-sm text-gray-900">
+                                  {servico.participantes.join(", ")}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-500">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex items-center justify-end space-x-2">
+                              <button
+                                onClick={() => handleEdit(servico)}
+                                className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
+                                title="Editar serviço"
+                              >
+                                <PencilIcon className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(servico._id)}
+                                className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
+                                title="Excluir serviço"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Paginação */}
+                {servicos.length > 0 && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    itemsPerPage={itemsPerPage}
+                    totalItems={servicos.length}
+                  />
+                )}
+              </div>
             )}
           </div>
         </div>
-        {/* Modal Novo/Editar Serviço */}
-        <Modal open={modalOpen} onClose={() => { setModalOpen(false); setEditId(null); setForm({ cliente: '', nomeCarro: '', tipoServico: '', data: '', participantes: [] }); }}>
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-1">
-              {editId ? 'Editar Serviço' : 'Novo Serviço'}
-            </h3>
-            <p className="text-sm text-gray-600">
-              {editId ? 'Atualize as informações do serviço' : 'Preencha os dados do novo serviço'}
-            </p>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Cliente</label>
-              <input 
-                name="cliente" 
-                value={form.cliente} 
-                onChange={handleFormChange} 
-                placeholder="Nome do cliente" 
-                required 
-                className="input-field"
-              />
+
+        {/* Serviço Modal */}
+        <Modal
+          isOpen={modalOpen}
+          onClose={closeModal}
+          title={editId ? "Editar Serviço" : "Novo Serviço"}
+        >
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label
+                  htmlFor="cliente"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Cliente
+                </label>
+                <input
+                  type="text"
+                  id="cliente"
+                  name="cliente"
+                  value={form.cliente}
+                  onChange={handleFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                  placeholder="Nome do cliente"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="nomeCarro"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Veículo
+                </label>
+                <input
+                  type="text"
+                  id="nomeCarro"
+                  name="nomeCarro"
+                  value={form.nomeCarro}
+                  onChange={handleFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                  placeholder="Modelo do veículo"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="tipoServico"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Tipo de Serviço
+                </label>
+                <select
+                  id="tipoServico"
+                  name="tipoServico"
+                  value={form.tipoServico}
+                  onChange={handleFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Selecione o tipo</option>
+                  {tipos.map((tipo) => (
+                    <option key={tipo._id} value={tipo._id}>
+                      {tipo.nome} - R$ {tipo.valor}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="valorPersonalizado"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Valor Personalizado (opcional)
+                </label>
+                <input
+                  type="number"
+                  id="valorPersonalizado"
+                  name="valorPersonalizado"
+                  value={form.valorPersonalizado}
+                  onChange={handleFormChange}
+                  step="0.01"
+                  min="0"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Deixe vazio para usar valor padrão"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Se preenchido, sobrescreverá o valor padrão do tipo de serviço
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="data"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Data do Serviço
+                </label>
+                <input
+                  type="date"
+                  id="data"
+                  name="data"
+                  value={form.data}
+                  onChange={handleFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
             </div>
-            
+
+            {/* Participantes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Nome do Carro</label>
-              <input 
-                name="nomeCarro" 
-                value={form.nomeCarro} 
-                onChange={handleFormChange} 
-                placeholder="Modelo do veículo" 
-                required 
-                className="input-field"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Serviço</label>
-              <select 
-                name="tipoServico" 
-                value={form.tipoServico} 
-                onChange={handleFormChange} 
-                required 
-                className="input-field"
-              >
-                <option value="">Selecione o tipo de serviço</option>
-                {tipos.map(t => (
-                  <option key={t._id} value={t._id}>{t.nome} - R$ {Number(t.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Data do Serviço</label>
-              <input 
-                name="data" 
-                type="date" 
-                value={form.data} 
-                onChange={handleFormChange} 
-                required 
-                className="input-field"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">Participantes</label>
-              <div className="grid grid-cols-1 gap-2">
-                {['Gabriel', 'Davi', 'Samuel'].map(p => (
-                  <label key={p} className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+              <label className="block text-sm font-medium text-gray-700 mb-4">
+                Participantes do Serviço
+              </label>
+
+              <div className="space-y-3">
+                {["Gabriel", "Samuel", "Davi"].map((nome) => (
+                  <label key={nome} className="flex items-center">
                     <input
                       type="checkbox"
-                      name="participantes"
-                      value={p}
-                      checked={form.participantes.includes(p)}
-                      onChange={e => {
-                        if (e.target.checked) {
-                          setForm(f => ({ ...f, participantes: [...f.participantes, p] }));
-                        } else {
-                          setForm(f => ({ ...f, participantes: f.participantes.filter(x => x !== p) }));
-                        }
-                      }}
-                      className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      checked={form.participantes.includes(nome)}
+                      onChange={(e) =>
+                        handleParticipanteChange(nome, e.target.checked)
+                      }
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
-                    <UserIcon className="heroicon-sm text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700">{p}</span>
+                    <span className="ml-2 text-sm text-gray-700">{nome}</span>
                   </label>
                 ))}
               </div>
             </div>
-            
-            <div className="flex gap-3 pt-4">
-              <button 
+
+            <div className="flex space-x-3 pt-6 border-t border-gray-200">
+              <button
                 type="button"
-                onClick={() => { setModalOpen(false); setEditId(null); setForm({ cliente: '', nomeCarro: '', tipoServico: '', data: '', participantes: [] }); }}
+                onClick={closeModal}
                 className="btn-secondary flex-1"
+                disabled={isLoading}
               >
                 Cancelar
               </button>
-              <button type="submit" className="btn-primary flex-1">
-                {editId ? 'Atualizar' : 'Criar'} Serviço
+              <button
+                type="submit"
+                className="btn-primary flex-1"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Salvando...
+                  </span>
+                ) : (
+                  `${editId ? "Atualizar" : "Criar"} Serviço`
+                )}
               </button>
             </div>
           </form>
         </Modal>
 
-        {/* Modal Novo Tipo de Serviço */}
-        <Modal open={modalTipoOpen} onClose={() => setModalTipoOpen(false)}>
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-1">Novo Tipo de Serviço</h3>
-            <p className="text-sm text-gray-600">Cadastre um novo tipo de serviço e seu valor</p>
-          </div>
-          
-          <form onSubmit={handleTipoSubmit} className="space-y-4">
+        {/* Tipo Serviço Modal */}
+        <Modal
+          isOpen={modalTipoOpen}
+          onClose={() => setModalTipoOpen(false)}
+          title="Novo Tipo de Serviço"
+        >
+          <form onSubmit={handleTipoSubmit} className="space-y-6">
+            {/* Combobox de seleção de tipo existente */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Nome do Serviço</label>
-              <input 
-                name="nome" 
-                placeholder="Ex: Lavagem Completa" 
-                required 
-                className="input-field"
+              <label
+                htmlFor="tipo-select"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Selecionar Tipo Existente
+              </label>
+              <select
+                id="tipo-select"
+                value={selectedTipoId}
+                onChange={handleTipoSelect}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Novo tipo de serviço...</option>
+                {tipos.map((tipo) => (
+                  <option key={tipo._id} value={tipo._id}>
+                    {tipo.nome} - R$ {tipo.valor}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="tipo-nome"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Nome do Tipo
+              </label>
+              <input
+                type="text"
+                id="tipo-nome"
+                name="nome"
+                value={tipoForm.nome}
+                onChange={handleTipoFormChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+                placeholder="Ex: Troca de óleo"
+                disabled={tipoLoading}
               />
             </div>
-            
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Valor (R$)</label>
-              <input 
-                name="valor" 
-                type="number" 
+              <label
+                htmlFor="tipo-valor"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Valor Base (R$)
+              </label>
+              <input
+                type="number"
+                id="tipo-valor"
+                name="valor"
+                value={tipoForm.valor}
+                onChange={handleTipoFormChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
                 step="0.01"
-                placeholder="0,00" 
-                required 
-                className="input-field"
+                placeholder="0.00"
+                disabled={tipoLoading}
               />
             </div>
-            
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Descrição (opcional)</label>
-              <textarea 
-                name="desc" 
-                placeholder="Detalhes sobre o serviço..." 
-                rows="3"
-                className="input-field resize-none"
+              <label
+                htmlFor="tipo-desc"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Descrição
+              </label>
+              <textarea
+                id="tipo-desc"
+                name="desc"
+                rows={3}
+                value={tipoForm.desc}
+                onChange={handleTipoFormChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Descrição do serviço..."
+                disabled={tipoLoading}
               />
             </div>
-            
-            <div className="flex gap-3 pt-4">
-              <button 
+            <div className="flex space-x-3 pt-6 border-t border-gray-200">
+              <button
                 type="button"
-                onClick={() => setModalTipoOpen(false)}
+                onClick={() => {
+                  setModalTipoOpen(false);
+                  setSelectedTipoId("");
+                  setTipoForm({ nome: "", valor: "", desc: "" });
+                }}
                 className="btn-secondary flex-1"
+                disabled={tipoLoading}
               >
                 Cancelar
               </button>
-              <button type="submit" className="btn-primary flex-1">
-                Criar Tipo
+              {selectedTipoId && (
+                <button
+                  type="button"
+                  onClick={handleTipoDelete}
+                  className="btn-danger flex-1"
+                  disabled={tipoLoading}
+                >
+                  Excluir
+                </button>
+              )}
+              <button
+                type="submit"
+                className="btn-primary flex-1"
+                disabled={tipoLoading}
+              >
+                {tipoLoading
+                  ? "Salvando..."
+                  : selectedTipoId
+                    ? "Salvar Edição"
+                    : "Criar Tipo"}
               </button>
             </div>
           </form>

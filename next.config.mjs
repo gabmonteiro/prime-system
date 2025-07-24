@@ -1,7 +1,7 @@
 // next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['mongoose']
+  serverExternalPackages: ["mongoose"],
 };
 
 export default nextConfig;

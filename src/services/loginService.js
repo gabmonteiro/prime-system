@@ -1,6 +1,6 @@
-import connectDB from '../libs/db.js';
-import User from '../models/user.js';
-import bcrypt from 'bcryptjs';
+import connectDB from "../libs/db.js";
+import User from "../models/user.js";
+import bcrypt from "bcryptjs";
 
 export default class LoginService {
   static async authenticate(email, password) {

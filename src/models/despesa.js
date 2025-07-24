@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const DespesaSchema = new mongoose.Schema({
   nome: {
@@ -20,7 +20,7 @@ const DespesaSchema = new mongoose.Schema({
   },
   tipo: {
     type: String,
-    enum: ['compra', 'gasto'],
+    enum: ["compra", "gasto"],
     required: true,
   },
   createdAt: {
@@ -30,12 +30,13 @@ const DespesaSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now,
-  }
+  },
 });
 
-DespesaSchema.pre('save', function(next) {
+DespesaSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
 
-export default mongoose.models.Despesa || mongoose.model('Despesa', DespesaSchema);
+export default mongoose.models.Despesa ||
+  mongoose.model("Despesa", DespesaSchema);

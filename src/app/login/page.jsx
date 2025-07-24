@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/authContext";
+
 import {
   LockClosedIcon,
   EyeIcon,
@@ -9,7 +10,7 @@ import {
   ExclamationTriangleIcon,
   ShieldCheckIcon,
   ArrowRightIcon,
-  ChartBarIcon
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
 
@@ -18,8 +19,23 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isFormFocused, setIsFormFocused] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [toast, setToast] = useState(null); // { type: 'success'|'error', message: string }
   const router = useRouter();
   const { login, error, loading, user } = useAuth();
+
+  useEffect(() => {
+    // Carrega dados salvos se lembrar de mim estiver ativo
+    const saved = localStorage.getItem("prime-login");
+    if (saved) {
+      try {
+        const { email, password } = JSON.parse(saved);
+        setEmail(email || "");
+        setPassword(password || "");
+        setRememberMe(true);
+      } catch {}
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -29,17 +45,50 @@ export default function LoginPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (rememberMe) {
+      localStorage.setItem("prime-login", JSON.stringify({ email, password }));
+    } else {
+      localStorage.removeItem("prime-login");
+    }
     const result = await login(email, password);
-    console.log('Resultado login:', result);
+    if (result === true) {
+      setToast({ type: "success", message: "Login realizado com sucesso!" });
+    } else {
+      setToast({
+        type: "error",
+        message:
+          typeof result === "string"
+            ? result
+            : result?.message || "Erro ao fazer login.",
+      });
+    }
+    setTimeout(() => setToast(null), 3500);
+    console.log("Resultado login:", result);
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed top-6 right-6 z-50 px-6 py-3 rounded-xl shadow-lg text-white font-semibold animate-fadeInScale ${toast.type === "success" ? "bg-green-500" : "bg-red-500"}`}
+          style={{ minWidth: "260px", textAlign: "center" }}
+        >
+          {toast.message}
+        </div>
+      )}
+
       {/* Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float"></div>
-        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float" style={{ animationDelay: '1s' }}></div>
+        <div
+          className="absolute top-3/4 right-1/4 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float"
+          style={{ animationDelay: "2s" }}
+        ></div>
+        <div
+          className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float"
+          style={{ animationDelay: "1s" }}
+        ></div>
       </div>
 
       {/* Main Container */}
@@ -50,13 +99,19 @@ export default function LoginPage() {
           <div className="text-center mb-8">
             {/* Logo */}
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl mb-6 shadow-medium animate-slideInDown">
-              <ChartBarIcon className="text-white" style={{ width: '32px', height: '32px' }} />
+              <ChartBarIcon
+                className="text-white"
+                style={{ width: "32px", height: "32px" }}
+              />
             </div>
-            
+
             <h1 className="text-3xl font-bold text-gradient-primary mb-2 animate-slideInUp">
               Bem-vindo de volta
             </h1>
-            <p className="text-gray-600 font-medium animate-slideInUp" style={{ animationDelay: '0.1s' }}>
+            <p
+              className="text-gray-600 font-medium animate-slideInUp"
+              style={{ animationDelay: "0.1s" }}
+            >
               Entre em sua conta para continuar
             </p>
           </div>
@@ -65,9 +120,14 @@ export default function LoginPage() {
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl animate-slideInUp">
               <div className="flex items-start space-x-3">
-                <ExclamationTriangleIcon className="text-red-500 mt-0.5 flex-shrink-0" style={{ width: '20px', height: '20px' }} />
+                <ExclamationTriangleIcon
+                  className="text-red-500 mt-0.5 flex-shrink-0"
+                  style={{ width: "20px", height: "20px" }}
+                />
                 <div>
-                  <p className="text-red-800 text-sm font-semibold">Erro de autenticação</p>
+                  <p className="text-red-800 text-sm font-semibold">
+                    Erro de autenticação
+                  </p>
                   <p className="text-red-700 text-sm mt-1">{error}</p>
                 </div>
               </div>
@@ -77,7 +137,10 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
-            <div className="space-y-2 animate-slideInUp" style={{ animationDelay: '0.2s' }}>
+            <div
+              className="space-y-2 animate-slideInUp"
+              style={{ animationDelay: "0.2s" }}
+            >
               <label className="block text-sm font-semibold text-gray-700">
                 Endereço de email
               </label>
@@ -86,7 +149,7 @@ export default function LoginPage() {
                   type="email"
                   className="input-field w-full pl-4 pr-4 py-3.5 bg-gray-50 border-2 border-gray-200 rounded-xl focus-ring-blue text-gray-900 placeholder-gray-400 font-medium transition-all duration-200"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                   onFocus={() => setIsFormFocused(true)}
                   onBlur={() => setIsFormFocused(false)}
                   required
@@ -96,7 +159,10 @@ export default function LoginPage() {
             </div>
 
             {/* Password Field */}
-            <div className="space-y-2 animate-slideInUp" style={{ animationDelay: '0.3s' }}>
+            <div
+              className="space-y-2 animate-slideInUp"
+              style={{ animationDelay: "0.3s" }}
+            >
               <label className="block text-sm font-semibold text-gray-700">
                 Senha
               </label>
@@ -105,14 +171,17 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   className="input-field w-full pl-12 pr-12 py-3.5 bg-gray-50 border-2 border-gray-200 rounded-xl focus-ring-blue text-gray-900 placeholder-gray-400 font-medium transition-all duration-200"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                   onFocus={() => setIsFormFocused(true)}
                   onBlur={() => setIsFormFocused(false)}
                   required
                   placeholder="••••••••••••"
                 />
                 <div className="absolute inset-y-0 left-0 flex items-center pl-4">
-                  <LockClosedIcon className="text-gray-400" style={{ width: '20px', height: '20px' }} />
+                  <LockClosedIcon
+                    className="text-gray-400"
+                    style={{ width: "20px", height: "20px" }}
+                  />
                 </div>
                 <button
                   type="button"
@@ -120,25 +189,38 @@ export default function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeSlashIcon className="text-gray-400" style={{ width: '20px', height: '20px' }} />
+                    <EyeSlashIcon
+                      className="text-gray-400"
+                      style={{ width: "20px", height: "20px" }}
+                    />
                   ) : (
-                    <EyeIcon className="text-gray-400" style={{ width: '20px', height: '20px' }} />
+                    <EyeIcon
+                      className="text-gray-400"
+                      style={{ width: "20px", height: "20px" }}
+                    />
                   )}
                 </button>
               </div>
             </div>
 
             {/* Remember & Forgot */}
-            <div className="flex items-center justify-between animate-slideInUp" style={{ animationDelay: '0.4s' }}>
+            <div
+              className="flex items-center justify-between animate-slideInUp"
+              style={{ animationDelay: "0.4s" }}
+            >
               <label className="flex items-center">
-                <input 
-                  type="checkbox" 
-                  className="w-4 h-4 text-blue-600 bg-gray-50 border-gray-300 rounded focus:ring-blue-500 focus:ring-2" 
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 bg-gray-50 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                 />
-                <span className="ml-2 text-sm font-medium text-gray-600">Lembrar de mim</span>
+                <span className="ml-2 text-sm font-medium text-gray-600">
+                  Lembrar de mim
+                </span>
               </label>
-              <a 
-                href="/forgot-password" 
+              <a
+                href="/forgot-password"
                 className="text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
               >
                 Esqueceu a senha?
@@ -150,57 +232,77 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               className={`btn-primary w-full py-4 px-6 rounded-xl font-semibold text-white shadow-medium focus-ring-blue transition-all duration-200 animate-slideInUp ${
-                loading ? 'opacity-70 cursor-not-allowed' : 'hover:transform hover:scale-[1.02]'
+                loading
+                  ? "opacity-70 cursor-not-allowed"
+                  : "hover:transform hover:scale-[1.02]"
               }`}
-              style={{ animationDelay: '0.5s' }}
+              style={{ animationDelay: "0.5s" }}
             >
               {loading ? (
                 <div className="flex items-center justify-center space-x-3">
-                  <ArrowPathIcon className="animate-spin text-white" style={{ width: '20px', height: '20px' }} />
+                  <ArrowPathIcon
+                    className="animate-spin text-white"
+                    style={{ width: "20px", height: "20px" }}
+                  />
                   <span>Entrando...</span>
                 </div>
               ) : (
                 <div className="flex items-center justify-center space-x-3">
                   <span>Entrar na conta</span>
-                  <ArrowRightIcon className="text-white" style={{ width: '20px', height: '20px' }} />
+                  <ArrowRightIcon
+                    className="text-white"
+                    style={{ width: "20px", height: "20px" }}
+                  />
                 </div>
               )}
             </button>
           </form>
-
-          {/* Footer */}
-          <div className="mt-8 text-center animate-slideInUp" style={{ animationDelay: '0.6s' }}>
-            <p className="text-sm text-gray-600">
-              Não tem uma conta?{" "}
-              <a 
-                href="/register" 
-                className="font-semibold text-blue-600 hover:text-blue-700 transition-colors"
-              >
-                Criar conta gratuita
-              </a>
-            </p>
-          </div>
         </div>
 
         {/* Security Badge */}
-        <div className="mt-6 text-center animate-slideInUp" style={{ animationDelay: '0.7s' }}>
+        <div
+          className="mt-6 text-center animate-slideInUp"
+          style={{ animationDelay: "0.7s" }}
+        >
           <div className="inline-flex items-center px-4 py-3 bg-white/80 backdrop-blur-sm rounded-xl border border-white/20 shadow-sm">
-            <ShieldCheckIcon className="text-green-500 mr-3" style={{ width: '20px', height: '20px' }} />
+            <ShieldCheckIcon
+              className="text-green-500 mr-3"
+              style={{ width: "20px", height: "20px" }}
+            />
             <div className="text-left">
-              <div className="text-sm font-semibold text-gray-800">Conexão Segura</div>
-              <div className="text-xs text-gray-600">Dados protegidos com criptografia</div>
+              <div className="text-sm font-semibold text-gray-800">
+                Conexão Segura
+              </div>
+              <div className="text-xs text-gray-600">
+                Dados protegidos com criptografia
+              </div>
             </div>
           </div>
         </div>
 
         {/* Additional Info */}
-        <div className="mt-8 text-center animate-slideInUp" style={{ animationDelay: '0.8s' }}>
+        <div
+          className="mt-8 text-center animate-slideInUp"
+          style={{ animationDelay: "0.8s" }}
+        >
           <div className="flex items-center justify-center space-x-6 text-xs text-gray-500">
-            <a href="/terms" className="hover:text-blue-600 transition-colors">Termos de Uso</a>
+            <a href="/terms" className="hover:text-blue-600 transition-colors">
+              Termos de Uso
+            </a>
             <span>•</span>
-            <a href="/privacy" className="hover:text-blue-600 transition-colors">Privacidade</a>
+            <a
+              href="/privacy"
+              className="hover:text-blue-600 transition-colors"
+            >
+              Privacidade
+            </a>
             <span>•</span>
-            <a href="/support" className="hover:text-blue-600 transition-colors">Suporte</a>
+            <a
+              href="/support"
+              className="hover:text-blue-600 transition-colors"
+            >
+              Suporte
+            </a>
           </div>
         </div>
       </div>

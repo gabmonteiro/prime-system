@@ -1,4 +1,4 @@
-import FuturaCompra from '../models/futuraCompra';
+import FuturaCompra from "../models/futuraCompra";
 
 export async function createFuturaCompra(data) {
   return await FuturaCompra.create(data);

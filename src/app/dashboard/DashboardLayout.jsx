@@ -1,14 +1,10 @@
-import Sidebar from '../../components/ui/Sidebar';
+import Sidebar from "../../components/ui/Sidebar";
 
 export default function DashboardLayout({ children }) {
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <div style={{ flex: '0 0 256px', height: '100vh', position: 'sticky', top: 0, zIndex: 10 }}>
-        <Sidebar />
-      </div>
-      <main style={{ flex: 1, padding: '2rem', background: '#f9fafb', minHeight: '100vh' }}>
-        {children}
-      </main>
+    <div style={{ display: "flex", minHeight: "100vh" }}>
+      <Sidebar />
+      <main className="min-h-screen bg-gray-50 px-2 py-4 transition-all flex-1">{children}</main>
     </div>
   );
 }

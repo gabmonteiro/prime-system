@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const FuturaCompraSchema = new mongoose.Schema({
   nome: {
@@ -17,7 +17,7 @@ const FuturaCompraSchema = new mongoose.Schema({
   },
   urgencia: {
     type: String,
-    enum: ['baixo', 'medio', 'alto'],
+    enum: ["baixo", "medio", "alto"],
     required: true,
   },
   createdAt: {
@@ -27,12 +27,13 @@ const FuturaCompraSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now,
-  }
+  },
 });
 
-FuturaCompraSchema.pre('save', function(next) {
+FuturaCompraSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
 
-export default mongoose.models.FuturaCompra || mongoose.model('FuturaCompra', FuturaCompraSchema);
+export default mongoose.models.FuturaCompra ||
+  mongoose.model("FuturaCompra", FuturaCompraSchema);

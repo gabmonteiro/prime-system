@@ -1,12 +1,14 @@
-import dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
 // src/libs/db.js
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
-  throw new Error('Por favor, defina a variável MONGODB_URI no arquivo .env.local');
+  throw new Error(
+    "Por favor, defina a variável MONGODB_URI no arquivo .env.local",
+  );
 }
 
 /**
@@ -30,7 +32,7 @@ async function connectDB() {
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      console.log('✅ MongoDB conectado com sucesso!');
+      console.log("✅ MongoDB conectado com sucesso!");
       return mongoose;
     });
   }
