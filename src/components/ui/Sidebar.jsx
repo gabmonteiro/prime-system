@@ -208,24 +208,33 @@ import {
 
   return (
     <>
-      {/* Botão de abrir sidebar no mobile */}
-      <button
-        className="fixed top-4 left-4 z-50 p-2 bg-white rounded-full shadow-lg border border-gray-200 lg:hidden"
-        onClick={() => setOpen(true)}
-        aria-label="Abrir menu"
+      {/* Botão de abrir sidebar no mobile - Fixo na tela */}
+      <div 
+        className="fixed top-4 left-4 z-[99999] lg:hidden"
+        style={{ 
+          position: 'fixed !important',
+          top: '1rem !important',
+          left: '1rem !important',
+          transform: 'none !important'
+        }}
       >
-        <Bars3Icon className="w-7 h-7 text-gray-700" />
-      </button>
+        <button
+          className="p-2 bg-white rounded-full shadow-lg border border-gray-200 backdrop-blur-sm hover:bg-gray-50 transition-colors"
+          onClick={() => setOpen(true)}
+          aria-label="Abrir menu"
+        >
+          <Bars3Icon className="w-6 h-6 text-gray-700" />
+        </button>
+      </div>
 
       {/* Overlay e sidebar mobile */}
       <div
-        className={`fixed inset-0 z-40 transition-all duration-300 ${open ? 'block' : 'hidden'} lg:hidden`}
-        style={{ background: open ? 'rgba(0,0,0,0.25)' : 'transparent' }}
+        className={`fixed inset-0 z-[9990] transition-opacity duration-300 ${open ? 'opacity-100 visible' : 'opacity-0 invisible'} lg:hidden`}
+        style={{ background: 'rgba(0,0,0,0.4)' }}
         onClick={() => setOpen(false)}
       ></div>
       <aside
-        className={`fixed top-0 left-0 z-50 h-full w-72 bg-gray-50 flex flex-col shadow-lg transform transition-transform duration-300 lg:static lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'} lg:w-72 lg:h-screen overflow-y-auto`}
-        style={{ minHeight: '100vh', WebkitOverflowScrolling: 'touch' }}
+        className={`fixed top-0 left-0 z-[9995] h-screen w-72 bg-gray-50 flex flex-col shadow-xl transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'} lg:w-72 lg:h-screen overflow-y-auto`}
       >
         {sidebarContent}
       </aside>
