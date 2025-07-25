@@ -62,10 +62,16 @@ export default function TiposServicosPage() {
     try {
       setIsLoading(true);
       const response = await fetch("/api/tipoServico");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
-      setTiposServicos(data || []);
+      // Garantir que data seja sempre um array
+      const tiposArray = Array.isArray(data) ? data : [];
+      setTiposServicos(tiposArray);
     } catch (error) {
       console.error("Erro ao carregar tipos de serviços:", error);
+      setTiposServicos([]); // Garantir que seja sempre um array em caso de erro
       showToast("Erro ao carregar tipos de serviços", "error");
     } finally {
       setIsLoading(false);
@@ -246,7 +252,7 @@ export default function TiposServicosPage() {
                 {/* Mobile Card View */}
                 <div className="block lg:hidden">
                   <div className="p-4 space-y-4">
-                    {currentTipos.map((tipo) => (
+                    {Array.isArray(currentTipos) && currentTipos.map((tipo) => (
                       <div
                         key={tipo._id}
                         className="bg-gray-50 rounded-lg shadow-md border border-gray-200 p-4"
@@ -314,7 +320,7 @@ export default function TiposServicosPage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {currentTipos.map((tipo) => (
+                      {Array.isArray(currentTipos) && currentTipos.map((tipo) => (
                         <tr key={tipo._id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">

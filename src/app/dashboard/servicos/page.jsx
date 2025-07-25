@@ -67,14 +67,20 @@ export default function ServicosPage() {
     try {
       setIsLoading(true);
       const response = await fetch("/api/servico");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
+      // Garantir que data seja sempre um array
+      const servicosArray = Array.isArray(data) ? data : [];
       // Ordenar por data (mais recente primeiro)
-      const sortedData = (data || []).sort(
+      const sortedData = servicosArray.sort(
         (a, b) => new Date(b.data) - new Date(a.data),
       );
       setServicos(sortedData);
     } catch (error) {
       console.error("Erro ao carregar serviços:", error);
+      setServicos([]); // Garantir que seja sempre um array em caso de erro
       showToast("Erro ao carregar serviços", "error");
     } finally {
       setIsLoading(false);
@@ -84,10 +90,17 @@ export default function ServicosPage() {
   async function fetchTipos() {
     try {
       const response = await fetch("/api/tipoServico");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
-      setTipos(data || []);
+      // Garantir que data seja sempre um array
+      const tiposArray = Array.isArray(data) ? data : [];
+      setTipos(tiposArray);
     } catch (error) {
       console.error("Erro ao carregar tipos de serviço:", error);
+      setTipos([]); // Garantir que tipos seja sempre um array em caso de erro
+      showToast("Erro ao carregar tipos de serviço", "error");
     }
   }
 
@@ -329,7 +342,7 @@ export default function ServicosPage() {
                 {/* Mobile Card View */}
                 <div className="block lg:hidden">
                   <div className="p-4 space-y-4">
-                    {currentServicos.map((servico) => (
+                    {Array.isArray(currentServicos) && currentServicos.map((servico) => (
                       <div
                         key={servico._id}
                         className="bg-gray-50 rounded-lg shadow-md border border-gray-200 p-4"
@@ -429,7 +442,7 @@ export default function ServicosPage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {currentServicos.map((servico) => (
+                      {Array.isArray(currentServicos) && currentServicos.map((servico) => (
                         <tr key={servico._id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
@@ -593,7 +606,7 @@ export default function ServicosPage() {
                   required
                 >
                   <option value="">Selecione o tipo</option>
-                  {tipos.map((tipo) => (
+                  {Array.isArray(tipos) && tipos.map((tipo) => (
                     <option key={tipo._id} value={tipo._id}>
                       {tipo.nome} - R$ {tipo.valor}
                     </option>

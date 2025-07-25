@@ -22,55 +22,68 @@ if (!cached) {
 }
 
 async function connectDB() {
-  // Se já tem conexão ativa, retorna ela
-  if (cached.conn && cached.conn.readyState === 1) {
-    return cached.conn;
-  }
-
-  // Se há uma promise pendente, aguarda ela
-  if (!cached.promise) {
-    const opts = {
-      bufferCommands: false,
-      maxPoolSize: 10, // Maintain up to 10 socket connections
-      serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
-      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-      family: 4, // Use IPv4, skip trying IPv6
-      retryWrites: true,
-      retryReads: true,
-    };
-
-    console.log("🔄 Conectando ao MongoDB...");
-    
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      console.log("✅ MongoDB conectado com sucesso!");
-      console.log(`📊 Estado da conexão: ${mongoose.connection.readyState}`);
-      console.log(`🏠 Host: ${mongoose.connection.host}`);
-      console.log(`🗃️  Database: ${mongoose.connection.name}`);
-      return mongoose;
-    }).catch((error) => {
-      console.error("❌ Erro ao conectar ao MongoDB:", error);
-      cached.promise = null;
-      throw error;
-    });
-  }
-
   try {
-    cached.conn = await cached.promise;
-  } catch (e) {
-    cached.promise = null;
-    console.error("❌ Falha na conexão MongoDB:", e);
-    throw e;
-  }
+    // Se já tem conexão ativa e saudável, retorna ela
+    if (cached.conn && cached.conn.connection.readyState === 1) {
+      return cached.conn;
+    }
 
-  // Verificar se a conexão está realmente ativa
-  if (cached.conn.connection.readyState !== 1) {
-    console.warn("⚠️ Conexão MongoDB não está ativa. ReadyState:", cached.conn.connection.readyState);
+    // Se a conexão está em estado ruim, limpa o cache
+    if (cached.conn && cached.conn.connection.readyState !== 1) {
+      console.warn("⚠️ Limpando conexão inativa. ReadyState:", cached.conn.connection.readyState);
+      cached.conn = null;
+      cached.promise = null;
+    }
+
+    // Se não há promise pendente, cria uma nova
+    if (!cached.promise) {
+      const opts = {
+        bufferCommands: false,
+        maxPoolSize: 10,
+        serverSelectionTimeoutMS: 10000, // Aumentado para 10s
+        socketTimeoutMS: 45000,
+        connectTimeoutMS: 10000,
+        family: 4,
+        retryWrites: true,
+        retryReads: true,
+        maxIdleTimeMS: 30000,
+        heartbeatFrequencyMS: 10000,
+      };
+
+      console.log("🔄 Conectando ao MongoDB...");
+      
+      cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+        console.log("✅ MongoDB conectado com sucesso!");
+        console.log(`📊 Estado da conexão: ${mongoose.connection.readyState}`);
+        console.log(`🏠 Host: ${mongoose.connection.host}`);
+        console.log(`🗃️  Database: ${mongoose.connection.name}`);
+        return mongoose;
+      }).catch((error) => {
+        console.error("❌ Erro ao conectar ao MongoDB:", error);
+        cached.promise = null;
+        throw new Error(`Falha na conexão MongoDB: ${error.message}`);
+      });
+    }
+
+    // Aguarda a conexão
+    cached.conn = await cached.promise;
+
+    // Verificação final do estado da conexão
+    if (!cached.conn || cached.conn.connection.readyState !== 1) {
+      console.error("❌ Conexão MongoDB inválida após conectar");
+      cached.conn = null;
+      cached.promise = null;
+      throw new Error("Conexão MongoDB inativa após tentativa de conexão");
+    }
+
+    return cached.conn;
+
+  } catch (error) {
+    console.error("❌ Erro crítico na conexão MongoDB:", error);
     cached.conn = null;
     cached.promise = null;
-    throw new Error("Conexão MongoDB inativa");
+    throw error;
   }
-
-  return cached.conn;
 }
 
 // Adicionar listeners para monitorar a conexão

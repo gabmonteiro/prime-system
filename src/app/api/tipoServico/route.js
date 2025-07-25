@@ -19,10 +19,12 @@ export async function GET(request) {
       return Response.json(tipoServico);
     }
     const tipoServicos = await getTipoServicos();
-    return Response.json(tipoServicos);
+    // Garantir que sempre retorna um array
+    const result = Array.isArray(tipoServicos) ? tipoServicos : [];
+    return Response.json(result);
   } catch (error) {
     console.error("Error in GET /api/tipoServico:", error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }
 
@@ -34,7 +36,7 @@ export async function POST(request) {
     return Response.json(tipoServico);
   } catch (error) {
     console.error("Error in POST /api/tipoServico:", error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }
 
@@ -48,7 +50,7 @@ export async function PUT(request) {
     return Response.json(tipoServico);
   } catch (error) {
     console.error("Error in PUT /api/tipoServico:", error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }
 
@@ -62,6 +64,6 @@ export async function DELETE(request) {
     return Response.json({ success: true });
   } catch (error) {
     console.error("Error in DELETE /api/tipoServico:", error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }

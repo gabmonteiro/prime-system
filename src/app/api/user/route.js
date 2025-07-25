@@ -7,7 +7,9 @@ export async function GET(request) {
     await connectDB();
     
     const users = await UserService.getAllUsers();
-    return Response.json(users);
+    // Garantir que sempre retorna um array
+    const result = Array.isArray(users) ? users : [];
+    return Response.json(result);
   } catch (error) {
     console.error("Erro ao buscar usuários:", error);
     return Response.json(
