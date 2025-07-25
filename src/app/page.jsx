@@ -164,24 +164,44 @@ export default function HomePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
               {features.map((feature, index) => {
                 const Icon = feature.icon;
+                // Novas cores suaves para os cards
+                const cardGradients = [
+                  'from-blue-100 to-blue-50',
+                  'from-green-100 to-emerald-50',
+                  'from-purple-100 to-pink-50',
+                  'from-gray-100 to-gray-50'
+                ];
+                const iconGradients = [
+                  'from-blue-400 to-indigo-400',
+                  'from-green-400 to-emerald-400',
+                  'from-purple-400 to-pink-400',
+                  'from-gray-400 to-gray-300'
+                ];
+                const textColors = [
+                  'text-blue-900',
+                  'text-green-900',
+                  'text-purple-900',
+                  'text-gray-800'
+                ];
+                const idx = index % 4;
                 return (
                   <div
                     key={index}
-                    className="feature-card animation-delay-200"
+                    className={`feature-card animation-delay-200 bg-gradient-to-br ${cardGradients[idx]} border border-gray-100 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300`}
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
                     <div
-                      className={`feature-icon bg-gradient-to-r ${feature.color} shadow-lg border-2 flex items-center justify-center`}
+                      className={`feature-icon bg-gradient-to-r ${iconGradients[idx]} shadow-md border-2 border-white flex items-center justify-center rounded-xl mb-4 w-14 h-14 mx-auto`}
                     >
-                      <Icon className="h-8 w-8" />
+                      <Icon className="h-8 w-8 text-white" />
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                    <h3 className={`text-2xl font-bold mb-4 ${textColors[idx]}`}>
                       {feature.title}
                     </h3>
-                    <p className="text-gray-600 mb-6 leading-relaxed">
+                    <p className={`mb-6 leading-relaxed ${textColors[idx]} opacity-80`}>
                       {feature.description}
                     </p>
-                    <div className="inline-flex items-center px-3 py-1 bg-gray-100 rounded-full text-sm font-medium text-gray-700">
+                    <div className={`inline-flex items-center px-3 py-1 bg-white/70 rounded-full text-sm font-medium ${textColors[idx]} border border-gray-200`}>
                       {feature.stats}
                     </div>
                   </div>
