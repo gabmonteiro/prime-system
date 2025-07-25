@@ -648,73 +648,42 @@ export default function DashboardPage() {
                     ).reduce((acc, v) => acc + v, 0);
                     // Se a soma for 0, evita divisão por zero
                     return nomes.map((nome, index) => {
-                      const valor =
-                        somaValores > 0
-                          ? carteira *
-                            (valoresParticipantes[nome] / somaValores)
-                          : 0;
-                      const percentage =
-                        somaValores > 0
-                          ? (valoresParticipantes[nome] / somaValores) * 100
-                          : 0;
-                      const count =
-                        valoresParticipantes[nome] > 0
-                          ? servicosDoMes.filter(
-                              (s) =>
-                                Array.isArray(s.participantes) &&
-                                s.participantes.includes(nome),
-                            ).length
-                          : 0;
+                      const valor = somaValores > 0 ? carteira * (valoresParticipantes[nome] / somaValores) : 0;
+                      const percentage = somaValores > 0 ? (valoresParticipantes[nome] / somaValores) * 100 : 0;
+                      const count = servicosDoMes.filter(
+                        (s) => Array.isArray(s.participantes) && s.participantes.includes(nome)
+                      ).length;
                       const colors = [
                         "bg-blue-100 text-blue-600",
                         "bg-green-100 text-green-600",
                         "bg-purple-100 text-purple-600",
                       ];
+                      const barColor = [
+                        "bg-blue-500",
+                        "bg-green-500",
+                        "bg-purple-500",
+                      ];
                       return (
-                        <div
-                          key={nome}
-                          className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200 hover:shadow-sm transition-all duration-200"
-                        >
-                          <div className="flex items-center space-x-4">
-                            <div
-                              className={`w-12 h-12 ${colors[index].split(" ")[0]} rounded-xl flex items-center justify-center`}
-                            >
-                              <UsersIcon
-                                className={`w-6 h-6 ${colors[index].split(" ")[1]}`}
-                              />
+                        <div key={nome} className="flex items-center gap-4 py-2">
+                          <div className={`w-10 h-10 ${colors[index].split(' ')[0]} rounded-lg flex items-center justify-center`}>
+                            <UsersIcon className={`w-5 h-5 ${colors[index].split(' ')[1]}`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium text-gray-900">{nome}</span>
+                              <span className="text-xs text-gray-500">{count} serviços</span>
+                              <span className="text-xs font-semibold text-gray-700">
+                                R$ {valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                              </span>
                             </div>
-                            <div>
-                              <p className="font-medium text-gray-900 mb-1">
-                                {nome}
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <div className="w-16 bg-gray-200 rounded-full h-2">
-                                  <div
-                                    className={`h-2 rounded-full ${colors[index].split(" ")[0].replace("100", "500")}`}
-                                    style={{
-                                      width: `${Math.min(percentage, 100)}%`,
-                                    }}
-                                  ></div>
-                                </div>
-                                <span className="text-xs text-gray-500">
-                                  {Math.round(percentage)}%
-                                </span>
-                              </div>
+                            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-2 ${barColor[index]} transition-all duration-500`}
+                                style={{ width: `${percentage}%` }}
+                              ></div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p
-                              className={`text-lg font-semibold ${valor >= 0 ? "text-green-600" : "text-red-600"}`}
-                            >
-                              R${" "}
-                              {valor.toLocaleString("pt-BR", {
-                                minimumFractionDigits: 2,
-                              })}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {count} serviços
-                            </p>
-                          </div>
+                          <span className="ml-2 text-xs text-gray-500 w-10 text-right">{Math.round(percentage)}%</span>
                         </div>
                       );
                     });

@@ -224,8 +224,8 @@ import {
         onClick={() => setOpen(false)}
       ></div>
       <aside
-        className={`fixed top-0 left-0 z-50 h-full w-72 bg-gray-50 flex flex-col shadow-lg transform transition-transform duration-300 lg:static lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'} lg:w-72 lg:h-screen`}
-        style={{ minHeight: '100vh' }}
+        className={`fixed top-0 left-0 z-50 h-full w-72 bg-gray-50 flex flex-col shadow-lg transform transition-transform duration-300 lg:static lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'} lg:w-72 lg:h-screen overflow-y-auto`}
+        style={{ minHeight: '100vh', WebkitOverflowScrolling: 'touch' }}
       >
         {sidebarContent}
       </aside>
