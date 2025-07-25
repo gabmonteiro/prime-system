@@ -1,7 +1,11 @@
 import { UserService } from "../../../services/userService.js";
+import connectDB from "../../../libs/db.js";
 
 export async function GET(request) {
   try {
+    // Garantir conexão com o banco
+    await connectDB();
+    
     const users = await UserService.getAllUsers();
     return Response.json(users);
   } catch (error) {
@@ -15,6 +19,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    // Garantir conexão com o banco
+    await connectDB();
+    
     const userData = await request.json();
 
     // Validações básicas

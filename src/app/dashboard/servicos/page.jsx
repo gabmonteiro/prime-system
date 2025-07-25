@@ -14,21 +14,15 @@ import {
   PencilIcon,
   TrashIcon,
   ChevronRightIcon,
-  TagIcon,
   UsersIcon,
 } from "@heroicons/react/24/outline";
 
 export default function ServicosPage() {
-  // Estado para edição/exclusão de tipo de serviço
-  const [selectedTipoId, setSelectedTipoId] = useState("");
-  const [tipoForm, setTipoForm] = useState({ nome: "", valor: "", desc: "" });
-  const [tipoLoading, setTipoLoading] = useState(false);
   const { user, loading } = useAuth();
   const router = useRouter();
 
   const [servicos, setServicos] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalTipoOpen, setModalTipoOpen] = useState(false);
   const [form, setForm] = useState({
     cliente: "",
     nomeCarro: "",
@@ -122,9 +116,16 @@ export default function ServicosPage() {
     setIsLoading(true);
 
     try {
+      // Corrigir data para fuso local (YYYY-MM-DD -> Date local)
+      let dataCorreta = form.data;
+      if (form.data && typeof form.data === "string" && form.data.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [ano, mes, dia] = form.data.split("-").map(Number);
+        dataCorreta = new Date(ano, mes - 1, dia);
+      }
+
       const payload = {
         ...form,
-        // Converter valorPersonalizado para número se preenchido
+        data: dataCorreta,
         valorPersonalizado: form.valorPersonalizado
           ? Number(form.valorPersonalizado)
           : null,
@@ -191,89 +192,6 @@ export default function ServicosPage() {
         showToast("Erro ao excluir serviço", "error");
       }
     }
-  }
-
-  async function handleTipoSubmit(e) {
-    e.preventDefault();
-    setTipoLoading(true);
-    try {
-      const nome = tipoForm.nome;
-      const valor = Number(tipoForm.valor);
-      const desc = tipoForm.desc;
-      if (selectedTipoId) {
-        // Editar tipo existente
-        await fetch("/api/tipoServico", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: selectedTipoId, nome, valor, desc }),
-        });
-        showToast("Tipo de serviço atualizado com sucesso!", "success");
-      } else {
-        // Criar novo tipo
-        await fetch("/api/tipoServico", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nome, valor, desc }),
-        });
-        showToast("Tipo de serviço criado com sucesso!", "success");
-      }
-      setModalTipoOpen(false);
-      setSelectedTipoId("");
-      setTipoForm({ nome: "", valor: "", desc: "" });
-      fetchTipos();
-    } catch (error) {
-      console.error("Erro ao salvar tipo de serviço:", error);
-      showToast("Erro ao salvar tipo de serviço", "error");
-    } finally {
-      setTipoLoading(false);
-    }
-  }
-
-  // Excluir tipo de serviço
-  async function handleTipoDelete() {
-    if (!selectedTipoId) return;
-    if (!window.confirm("Tem certeza que deseja excluir este tipo de serviço?"))
-      return;
-    setTipoLoading(true);
-    try {
-      await fetch("/api/tipoServico", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: selectedTipoId }),
-      });
-      showToast("Tipo de serviço excluído com sucesso!", "success");
-      setSelectedTipoId("");
-      setTipoForm({ nome: "", valor: "", desc: "" });
-      setModalTipoOpen(false);
-      fetchTipos();
-    } catch (error) {
-      console.error("Erro ao excluir tipo de serviço:", error);
-      showToast("Erro ao excluir tipo de serviço", "error");
-    } finally {
-      setTipoLoading(false);
-    }
-  }
-
-  // Ao selecionar um tipo, preencher o form
-  function handleTipoSelect(e) {
-    const id = e.target.value;
-    setSelectedTipoId(id);
-    if (id) {
-      const tipo = tipos.find((t) => t._id === id);
-      setTipoForm({
-        nome: tipo?.nome || "",
-        valor: tipo?.valor || "",
-        desc: tipo?.desc || "",
-      });
-    } else {
-      setTipoForm({ nome: "", valor: "", desc: "" });
-    }
-  }
-
-  // Atualizar campos do form de tipo
-  function handleTipoFormChange(e) {
-    const { name, value } = e.target;
-    setTipoForm((prev) => ({ ...prev, [name]: value }));
   }
 
   function openModal() {
@@ -376,13 +294,6 @@ export default function ServicosPage() {
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  onClick={() => setModalTipoOpen(true)}
-                  className="inline-flex items-center justify-center px-4 py-2 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  <TagIcon className="h-5 w-5 mr-2" />
-                  Novo Tipo
-                </button>
                 <button
                   onClick={openModal}
                   className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
@@ -777,130 +688,6 @@ export default function ServicosPage() {
                 ) : (
                   `${editId ? "Atualizar" : "Criar"} Serviço`
                 )}
-              </button>
-            </div>
-          </form>
-        </Modal>
-
-        {/* Tipo Serviço Modal */}
-        <Modal
-          isOpen={modalTipoOpen}
-          onClose={() => setModalTipoOpen(false)}
-          title="Novo Tipo de Serviço"
-        >
-          <form onSubmit={handleTipoSubmit} className="space-y-6">
-            {/* Combobox de seleção de tipo existente */}
-            <div>
-              <label
-                htmlFor="tipo-select"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Selecionar Tipo Existente
-              </label>
-              <select
-                id="tipo-select"
-                value={selectedTipoId}
-                onChange={handleTipoSelect}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Novo tipo de serviço...</option>
-                {tipos.map((tipo) => (
-                  <option key={tipo._id} value={tipo._id}>
-                    {tipo.nome} - R$ {tipo.valor}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label
-                htmlFor="tipo-nome"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Nome do Tipo
-              </label>
-              <input
-                type="text"
-                id="tipo-nome"
-                name="nome"
-                value={tipoForm.nome}
-                onChange={handleTipoFormChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-                placeholder="Ex: Troca de óleo"
-                disabled={tipoLoading}
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="tipo-valor"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Valor Base (R$)
-              </label>
-              <input
-                type="number"
-                id="tipo-valor"
-                name="valor"
-                value={tipoForm.valor}
-                onChange={handleTipoFormChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-                step="0.01"
-                placeholder="0.00"
-                disabled={tipoLoading}
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="tipo-desc"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Descrição
-              </label>
-              <textarea
-                id="tipo-desc"
-                name="desc"
-                rows={3}
-                value={tipoForm.desc}
-                onChange={handleTipoFormChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Descrição do serviço..."
-                disabled={tipoLoading}
-              />
-            </div>
-            <div className="flex space-x-3 pt-6 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={() => {
-                  setModalTipoOpen(false);
-                  setSelectedTipoId("");
-                  setTipoForm({ nome: "", valor: "", desc: "" });
-                }}
-                className="btn-secondary flex-1"
-                disabled={tipoLoading}
-              >
-                Cancelar
-              </button>
-              {selectedTipoId && (
-                <button
-                  type="button"
-                  onClick={handleTipoDelete}
-                  className="btn-danger flex-1"
-                  disabled={tipoLoading}
-                >
-                  Excluir
-                </button>
-              )}
-              <button
-                type="submit"
-                className="btn-primary flex-1"
-                disabled={tipoLoading}
-              >
-                {tipoLoading
-                  ? "Salvando..."
-                  : selectedTipoId
-                    ? "Salvar Edição"
-                    : "Criar Tipo"}
               </button>
             </div>
           </form>

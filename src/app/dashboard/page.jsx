@@ -120,25 +120,18 @@ export default function DashboardPage() {
       setDadosServicosDia(servDia);
       setDadosDespesasDia(despDia);
 
-      // Carteira inicial (último mês)
-      const ultimoMes =
-        mesesArr.length > 0 ? mesesArr[mesesArr.length - 1] : "";
-      const totalServ = serv
-        .filter((s) => getMonthKey(s.data) === ultimoMes)
-        .reduce(
-          (acc, s) =>
-            acc +
-            (s.valorPersonalizado
-              ? Number(s.valorPersonalizado)
-              : s.tipoServico?.valor
-                ? Number(s.tipoServico.valor)
-                : 0),
-          0,
-        );
-      const totalDesp = desp
-        .filter((d) => getMonthKey(d.data) === ultimoMes)
-        .reduce((acc, d) => acc + (Number(d.valor) || 0), 0);
-
+      // Carteira: saldo acumulado de todos os meses
+      const totalServ = serv.reduce(
+        (acc, s) =>
+          acc +
+          (s.valorPersonalizado
+            ? Number(s.valorPersonalizado)
+            : s.tipoServico?.valor
+              ? Number(s.tipoServico.valor)
+              : 0),
+        0,
+      );
+      const totalDesp = desp.reduce((acc, d) => acc + (Number(d.valor) || 0), 0);
       setCarteira(totalServ - totalDesp);
     } catch (error) {
       console.error("Erro ao carregar dados do dashboard:", error);

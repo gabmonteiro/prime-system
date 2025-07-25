@@ -13,3 +13,5 @@ export function Card({ children, className = "", hover = true, glass = true }) {
     </div>
   );
 }
+
+export default Card;

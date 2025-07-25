@@ -1,5 +1,4 @@
 // components/ui/Button.jsx
-import { BiLoaderAlt } from "react-icons/bi";
 
 export function Button({
   children,
@@ -31,7 +30,7 @@ export function Button({
     >
       {loading ? (
         <div className="flex items-center justify-center">
-          <BiLoaderAlt className="animate-spin mr-3 h-5 w-5" />
+          <div className="animate-spin mr-3 h-5 w-5 border-2 border-current border-t-transparent rounded-full"></div>
           Carregando...
         </div>
       ) : (
@@ -43,3 +42,5 @@ export function Button({
     </button>
   );
 }
+
+export default Button;

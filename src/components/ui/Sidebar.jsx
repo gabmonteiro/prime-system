@@ -12,7 +12,8 @@ import {
   UserIcon,
   UserGroupIcon,
   XMarkIcon,
-  Bars3Icon
+  Bars3Icon,
+  WrenchScrewdriverIcon
 } from '@heroicons/react/24/outline';
 import { 
   HomeIcon as HomeIconSolid, 
@@ -20,7 +21,8 @@ import {
   CurrencyDollarIcon as CurrencyDollarIconSolid, 
   ShoppingCartIcon as ShoppingCartIconSolid,
   ChartBarIcon as ChartBarIconSolid,
-  UserGroupIcon as UserGroupIconSolid
+  UserGroupIcon as UserGroupIconSolid,
+  WrenchScrewdriverIcon as WrenchScrewdriverIconSolid
 } from '@heroicons/react/24/solid';
 
 
@@ -41,6 +43,13 @@ import {
     icon: CogIcon,
     iconSolid: CogIconSolid,
     description: 'Gestão de serviços'
+  },
+  { 
+    href: '/dashboard/tipos-servicos', 
+    label: 'Tipos de Serviços', 
+    icon: WrenchScrewdriverIcon,
+    iconSolid: WrenchScrewdriverIconSolid,
+    description: 'Configurar tipos'
   },
   { 
     href: '/dashboard/despesas', 

@@ -5,38 +5,63 @@ import {
   updateTipoServico,
   deleteTipoServico,
 } from "../../../services/tipoServicoService";
+import connectDB from "../../../libs/db";
 
 export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
-  if (id) {
-    const tipoServico = await getTipoServicoById(id);
-    if (!tipoServico)
-      return Response.json({ error: "Not found" }, { status: 404 });
-    return Response.json(tipoServico);
+  try {
+    await connectDB();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (id) {
+      const tipoServico = await getTipoServicoById(id);
+      if (!tipoServico)
+        return Response.json({ error: "Not found" }, { status: 404 });
+      return Response.json(tipoServico);
+    }
+    const tipoServicos = await getTipoServicos();
+    return Response.json(tipoServicos);
+  } catch (error) {
+    console.error("Error in GET /api/tipoServico:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
-  const tipoServicos = await getTipoServicos();
-  return Response.json(tipoServicos);
 }
 
 export async function POST(request) {
-  const data = await request.json();
-  const tipoServico = await createTipoServico(data);
-  return Response.json(tipoServico);
+  try {
+    await connectDB();
+    const data = await request.json();
+    const tipoServico = await createTipoServico(data);
+    return Response.json(tipoServico);
+  } catch (error) {
+    console.error("Error in POST /api/tipoServico:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function PUT(request) {
-  const { id, ...data } = await request.json();
-  const tipoServico = await updateTipoServico(id, data);
-  if (!tipoServico)
-    return Response.json({ error: "Not found" }, { status: 404 });
-  return Response.json(tipoServico);
+  try {
+    await connectDB();
+    const { id, ...data } = await request.json();
+    const tipoServico = await updateTipoServico(id, data);
+    if (!tipoServico)
+      return Response.json({ error: "Not found" }, { status: 404 });
+    return Response.json(tipoServico);
+  } catch (error) {
+    console.error("Error in PUT /api/tipoServico:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function DELETE(request) {
-  const { id } = await request.json();
-  const tipoServico = await deleteTipoServico(id);
-  if (!tipoServico)
-    return Response.json({ error: "Not found" }, { status: 404 });
-  return Response.json({ success: true });
+  try {
+    await connectDB();
+    const { id } = await request.json();
+    const tipoServico = await deleteTipoServico(id);
+    if (!tipoServico)
+      return Response.json({ error: "Not found" }, { status: 404 });
+    return Response.json({ success: true });
+  } catch (error) {
+    console.error("Error in DELETE /api/tipoServico:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

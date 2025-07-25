@@ -1,14 +1,14 @@
 // components/ui/Alert.jsx
 import {
-  HiOutlineExclamationTriangle,
-  HiOutlineCheckCircle,
-  HiOutlineInformationCircle,
-  HiOutlineXCircle,
-} from "react-icons/hi2";
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  InformationCircleIcon,
+  XCircleIcon,
+} from "@heroicons/react/24/outline";
 
 const alertConfig = {
   error: {
-    icon: HiOutlineXCircle,
+    icon: XCircleIcon,
     bgColor: "bg-red-50",
     borderColor: "border-red-200",
     iconColor: "text-red-500",
@@ -16,7 +16,7 @@ const alertConfig = {
     textColor: "text-red-700",
   },
   warning: {
-    icon: HiOutlineExclamationTriangle,
+    icon: ExclamationTriangleIcon,
     bgColor: "bg-yellow-50",
     borderColor: "border-yellow-200",
     iconColor: "text-yellow-500",
@@ -24,7 +24,7 @@ const alertConfig = {
     textColor: "text-yellow-700",
   },
   success: {
-    icon: HiOutlineCheckCircle,
+    icon: CheckCircleIcon,
     bgColor: "bg-green-50",
     borderColor: "border-green-200",
     iconColor: "text-green-500",
@@ -32,7 +32,7 @@ const alertConfig = {
     textColor: "text-green-700",
   },
   info: {
-    icon: HiOutlineInformationCircle,
+    icon: InformationCircleIcon,
     bgColor: "bg-blue-50",
     borderColor: "border-blue-200",
     iconColor: "text-blue-500",
@@ -67,3 +67,5 @@ export function Alert({ type = "info", title, message, className = "" }) {
     </div>
   );
 }
+
+export default Alert;

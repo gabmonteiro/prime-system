@@ -18,3 +18,5 @@ export function PageContainer({ children, className = "" }) {
     </div>
   );
 }
+
+export default PageContainer;

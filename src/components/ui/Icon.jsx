@@ -17,3 +17,5 @@ export const IconSizes = {
   lg: 24,
   xl: 32,
 };
+
+export default Icon;
