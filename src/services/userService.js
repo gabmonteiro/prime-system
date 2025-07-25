@@ -90,26 +90,4 @@ export class UserService {
     await connectDB();
     return await User.findOne({ email }).select("-password");
   }
-
-  static async getAllUsers() {
-    await connectDB();
-    return await User.find({}).select("-password");
-  }
-
-  static async updateUser(id, updateData) {
-    await connectDB();
-
-    const user = await User.findByIdAndUpdate(
-      id,
-      { ...updateData, updatedAt: new Date() },
-      { new: true, runValidators: true },
-    ).select("-password");
-
-    return user;
-  }
-
-  static async deleteUser(id) {
-    await connectDB();
-    return await User.findByIdAndDelete(id);
-  }
 }
