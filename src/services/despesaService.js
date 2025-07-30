@@ -19,3 +19,20 @@ export async function updateDespesa(id, data) {
 export async function deleteDespesa(id) {
   return await Despesa.findByIdAndDelete(id);
 }
+
+export async function getDespesasPaginated(page = 1, limit = 10) {
+  const skip = (page - 1) * limit;
+  const [data, total] = await Promise.all([
+    Despesa.find()
+      .sort({ data: -1 })
+      .skip(skip)
+      .limit(limit),
+    Despesa.countDocuments(),
+  ]);
+  return {
+    data,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  };
+}

@@ -31,6 +31,10 @@ const ServicoSchema = new mongoose.Schema({
       enum: ["Gabriel", "Samuel", "Davi"],
     },
   ],
+  pago: {
+    type: Boolean,
+    default: false,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

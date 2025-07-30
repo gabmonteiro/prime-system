@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../../../context/authContext";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "../DashboardLayout";
@@ -30,17 +31,21 @@ export default function ServicosPage() {
     valorPersonalizado: "",
     data: "",
     participantes: [],
+    pago: false, // novo campo
   });
   const [tipos, setTipos] = useState([]);
   const [editId, setEditId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1); // ADICIONADO
   const [toastState, setToastState] = useState({
     show: false,
     message: "",
     type: "success",
   });
+  const [pendingPago, setPendingPago] = useState(null);
+  const [showConfirmPago, setShowConfirmPago] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -50,10 +55,10 @@ export default function ServicosPage() {
 
   useEffect(() => {
     if (user) {
-      fetchData();
+      fetchData(currentPage, itemsPerPage);
       fetchTipos();
     }
-  }, [user]);
+  }, [user, currentPage, itemsPerPage]);
 
   // Show toast notification
   const showToast = (message, type = "success") => {
@@ -63,24 +68,20 @@ export default function ServicosPage() {
     }, 4000);
   };
 
-  async function fetchData() {
+  async function fetchData(page = 1, limit = 10) {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/servico");
+      const response = await fetch(`/api/servico?page=${page}&limit=${limit}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const data = await response.json();
-      // Garantir que data seja sempre um array
-      const servicosArray = Array.isArray(data) ? data : [];
-      // Ordenar por data (mais recente primeiro)
-      const sortedData = servicosArray.sort(
-        (a, b) => new Date(b.data) - new Date(a.data),
-      );
-      setServicos(sortedData);
+      const result = await response.json();
+      // result: { data, total, page, totalPages }
+      setServicos(Array.isArray(result.data) ? result.data : []);
+      setTotalPages(result.totalPages || 1);
     } catch (error) {
       console.error("Erro ao carregar serviços:", error);
-      setServicos([]); // Garantir que seja sempre um array em caso de erro
+      setServicos([]);
       showToast("Erro ao carregar serviços", "error");
     } finally {
       setIsLoading(false);
@@ -105,8 +106,11 @@ export default function ServicosPage() {
   }
 
   function handleFormChange(e) {
-    const { name, value } = e.target;
-    setForm({ ...form, [name]: value });
+    const { name, value, type, checked } = e.target;
+    setForm({ 
+      ...form, 
+      [name]: type === "checkbox" ? checked : value 
+    });
   }
 
   function handleParticipanteChange(participante, isChecked) {
@@ -114,14 +118,6 @@ export default function ServicosPage() {
       ? [...form.participantes, participante]
       : form.participantes.filter((p) => p !== participante);
     setForm({ ...form, participantes: newParticipantes });
-  }
-
-  function addParticipante() {
-    // Não é mais necessário com checkboxes
-  }
-
-  function removeParticipante(index) {
-    // Não é mais necessário com checkboxes
   }
 
   async function handleSubmit(e) {
@@ -161,7 +157,7 @@ export default function ServicosPage() {
       }
 
       closeModal();
-      fetchData();
+      fetchData(currentPage, itemsPerPage);
     } catch (error) {
       console.error("Erro ao salvar serviço:", error);
       showToast("Erro ao salvar serviço", "error");
@@ -185,6 +181,7 @@ export default function ServicosPage() {
       participantes: Array.isArray(servico.participantes)
         ? servico.participantes
         : [],
+      pago: typeof servico.pago === "boolean" ? servico.pago : false, // novo campo
     });
     setEditId(servico._id);
     setModalOpen(true);
@@ -207,6 +204,28 @@ export default function ServicosPage() {
     }
   }
 
+  async function handleTogglePago(servico) {
+    try {
+      await fetch("/api/servico", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: servico._id, pago: !servico.pago }),
+      });
+      setServicos((prev) =>
+        prev.map((s) =>
+          s._id === servico._id ? { ...s, pago: !servico.pago } : s
+        )
+      );
+      showToast(
+        `Serviço marcado como ${!servico.pago ? "pago" : "não pago"}!`,
+        "success"
+      );
+    } catch (error) {
+      console.error("Erro ao atualizar status de pagamento:", error);
+      showToast("Erro ao atualizar status de pagamento", "error");
+    }
+  }
+
   function openModal() {
     const today = new Date();
     const localDate = new Date(
@@ -223,6 +242,7 @@ export default function ServicosPage() {
       valorPersonalizado: "",
       data: localDate,
       participantes: [],
+      pago: false,
     });
     setEditId(null);
     setModalOpen(true);
@@ -237,20 +257,34 @@ export default function ServicosPage() {
       valorPersonalizado: "",
       data: "",
       participantes: [],
+      pago: false,
     });
     setEditId(null);
   }
 
   // Paginação
-  const totalPages = Math.ceil(servicos.length / itemsPerPage);
-  const currentServicos = servicos.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
+  const currentServicos = servicos;
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
+
+  // Função para obter o mês fiscal (17 a 16)
+  function getFiscalMonth(dateStr) {
+    const d = new Date(dateStr);
+    let year = d.getFullYear();
+    let month = d.getMonth() + 1;
+    let day = d.getDate();
+    if (day < 17) {
+      if (month === 1) {
+        month = 12;
+        year -= 1;
+      } else {
+        month -= 1;
+      }
+    }
+    return `${year}-${month.toString().padStart(2, "0")}`;
+  }
 
   if (!user) {
     return (
@@ -265,13 +299,18 @@ export default function ServicosPage() {
     );
   }
 
+  // Ordene os serviços por data decrescente (já vem assim da API, mas garanta)
+  const sortedServicos = [...currentServicos].sort(
+    (a, b) => new Date(b.data) - new Date(a.data)
+  );
+
   return (
     <DashboardLayout>
       <div className="p-6">
         {/* Toast Notification */}
         {toastState.show && (
           <div
-            className={`fixed top-4 right-4 z-50 max-w-sm w-full sm:right-4 sm:left-auto sm:translate-x-0 left-1/2 -translate-x-1/2 ${
+            className={`fixed top-4 right-4 z-[99999] max-w-sm w-full sm:right-4 sm:left-auto sm:translate-x-0 left-1/2 -translate-x-1/2 ${
               toastState.type === "success" ? "bg-green-500" : "bg-red-500"
             } text-white p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out`}
           >
@@ -342,77 +381,121 @@ export default function ServicosPage() {
                 {/* Mobile Card View */}
                 <div className="block lg:hidden">
                   <div className="p-4 space-y-4">
-                    {Array.isArray(currentServicos) && currentServicos.map((servico) => (
-                      <div
-                        key={servico._id}
-                        className="bg-gray-50 rounded-lg shadow-md border border-gray-200 p-4"
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-blue-100 rounded-full">
-                              <WrenchScrewdriverIcon className="h-4 w-4 text-blue-600" />
-                            </div>
-                            <div>
-                              <h3 className="font-medium text-gray-900">
-                                {servico.cliente}
-                              </h3>
-                              <p className="text-sm text-gray-600">
-                                {servico.nomeCarro}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {typeof servico.tipoServico === "object"
-                                  ? servico.tipoServico?.nome
-                                  : servico.tipoServico}
-                              </p>
-                              <p className="text-sm font-medium text-green-600 mt-1">
-                                R${" "}
-                                {(
-                                  servico.valorPersonalizado ||
-                                  servico.tipoServico?.valor ||
-                                  0
-                                ).toLocaleString("pt-BR", {
-                                  minimumFractionDigits: 2,
+                    {sortedServicos.map((servico, idx) => {
+                      const prev = sortedServicos[idx - 1];
+                      const currFiscalMonth = getFiscalMonth(servico.data);
+                      const prevFiscalMonth = prev ? getFiscalMonth(prev.data) : null;
+                      const showDivider = idx === 0 || currFiscalMonth !== prevFiscalMonth;
+                      return (
+                        <React.Fragment key={servico._id}>
+                          {showDivider && (
+                            <div className="my-4 flex items-center">
+                              <div className="flex-1 border-t border-gray-300"></div>
+                              <span className="mx-4 text-xs font-semibold text-gray-500">
+                                {new Date(`${currFiscalMonth}-17`).toLocaleDateString("pt-BR", {
+                                  year: "numeric",
+                                  month: "long",
                                 })}
-                                {servico.valorPersonalizado && (
-                                  <span className="text-xs text-blue-600 ml-1">
-                                    (personalizado)
-                                  </span>
-                                )}
-                              </p>
+                              </span>
+                              <div className="flex-1 border-t border-gray-300"></div>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium text-gray-900">
-                              {new Date(servico.data).toLocaleDateString(
-                                "pt-BR",
-                              )}
-                            </div>
-                            {servico.participantes &&
-                              servico.participantes.length > 0 && (
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {servico.participantes.join(", ")}
+                          )}
+                          <div
+                            className="bg-gray-50 rounded-lg shadow-md border border-gray-200 p-4"
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center space-x-3">
+                                <div className="p-2 bg-blue-100 rounded-full">
+                                  <WrenchScrewdriverIcon className="h-4 w-4 text-blue-600" />
                                 </div>
-                              )}
+                                <div>
+                                  <h3 className="font-medium text-gray-900">
+                                    {servico.cliente}
+                                  </h3>
+                                  <p className="text-sm text-gray-600">
+                                    {servico.nomeCarro}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {typeof servico.tipoServico === "object"
+                                      ? servico.tipoServico?.nome
+                                      : servico.tipoServico}
+                                  </p>
+                                  <p className="text-sm font-medium text-green-600 mt-1">
+                                    R${" "}
+                                    {(
+                                      servico.valorPersonalizado ||
+                                      servico.tipoServico?.valor ||
+                                      0
+                                    ).toLocaleString("pt-BR", {
+                                      minimumFractionDigits: 2,
+                                    })}
+                                    {servico.valorPersonalizado && (
+                                      <span className="text-xs text-blue-600 ml-1">
+                                        (personalizado)
+                                      </span>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {new Date(servico.data).toLocaleDateString(
+                                    "pt-BR",
+                                  )}
+                                </div>
+                                {servico.participantes &&
+                                  servico.participantes.length > 0 && (
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      {servico.participantes.join(", ")}
+                                    </div>
+                                  )}
+                              </div>
+                            </div>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleEdit(servico)}
+                                className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
+                              >
+                                <PencilIcon className="h-4 w-4 mr-1" />
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => handleDelete(servico._id)}
+                                className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
+                              >
+                                <TrashIcon className="h-4 w-4 mr-1" />
+                                Excluir
+                              </button>
+                            </div>
+                            <p className="text-xs mt-1 flex items-center">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPendingPago(servico);
+                                  setShowConfirmPago(true);
+                                }}
+                                className={`relative inline-flex h-6 w-12 border-2 border-transparent rounded-full cursor-pointer transition-colors duration-200 focus:outline-none ${
+                                  servico.pago ? "bg-green-500" : "bg-gray-300"
+                                }`}
+                                aria-pressed={servico.pago}
+                                tabIndex={0}
+                                title={servico.pago ? "Marcar como não pago" : "Marcar como pago"}
+                              >
+                                <span
+                                  className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition-transform duration-200 ${
+                                    servico.pago ? "translate-x-6" : "translate-x-1"
+                                  }`}
+                                />
+                                <span className="sr-only">Toggle pago</span>
+                              </button>
+                              <span className={`ml-3 text-xs font-semibold ${servico.pago ? "text-green-700" : "text-red-700"}`}>
+                                {servico.pago ? "Pago" : "Não Pago"}
+                              </span>
+                            </p>
                           </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEdit(servico)}
-                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
-                          >
-                            <PencilIcon className="h-4 w-4 mr-1" />
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => handleDelete(servico._id)}
-                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
-                          >
-                            <TrashIcon className="h-4 w-4 mr-1" />
-                            Excluir
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                        </React.Fragment>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -439,92 +522,144 @@ export default function ServicosPage() {
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Ações
                         </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Pago
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {Array.isArray(currentServicos) && currentServicos.map((servico) => (
-                        <tr key={servico._id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10">
-                                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                  <WrenchScrewdriverIcon className="h-6 w-6 text-blue-600" />
-                                </div>
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {servico.cliente}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {servico.nomeCarro}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {typeof servico.tipoServico === "object"
-                                ? servico.tipoServico?.nome
-                                : servico.tipoServico}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              R${" "}
-                              {(
-                                servico.valorPersonalizado ||
-                                servico.tipoServico?.valor ||
-                                0
-                              ).toLocaleString("pt-BR", {
-                                minimumFractionDigits: 2,
-                              })}
-                              {servico.valorPersonalizado && (
-                                <span className="ml-1 text-xs text-blue-600">
-                                  (personalizado)
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {new Date(servico.data).toLocaleDateString(
-                                "pt-BR",
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {servico.participantes &&
-                            servico.participantes.length > 0 ? (
-                              <div className="flex items-center">
-                                <UsersIcon className="h-4 w-4 text-gray-400 mr-1" />
-                                <span className="text-sm text-gray-900">
-                                  {servico.participantes.join(", ")}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-sm text-gray-500">-</span>
+                      {sortedServicos.map((servico, idx) => {
+                        const prev = sortedServicos[idx - 1];
+                        const currFiscalMonth = getFiscalMonth(servico.data);
+                        const prevFiscalMonth = prev ? getFiscalMonth(prev.data) : null;
+                        const showDivider = idx === 0 || currFiscalMonth !== prevFiscalMonth;
+                        return (
+                          <React.Fragment key={servico._id}>
+                            {showDivider && (
+                              <tr>
+                                <td colSpan={7} className="py-2">
+                                  <div className="flex items-center">
+                                    <div className="flex-1 border-t border-gray-300"></div>
+                                    <span className="mx-4 text-xs font-semibold text-gray-500">
+                                      {new Date(`${currFiscalMonth}-17`).toLocaleDateString("pt-BR", {
+                                        year: "numeric",
+                                        month: "long",
+                                      })}
+                                    </span>
+                                    <div className="flex-1 border-t border-gray-300"></div>
+                                  </div>
+                                </td>
+                              </tr>
                             )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div className="flex items-center justify-end space-x-2">
-                              <button
-                                onClick={() => handleEdit(servico)}
-                                className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
-                                title="Editar serviço"
-                              >
-                                <PencilIcon className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(servico._id)}
-                                className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
-                                title="Excluir serviço"
-                              >
-                                <TrashIcon className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                            <tr className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="flex-shrink-0 h-10 w-10">
+                                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                      <WrenchScrewdriverIcon className="h-6 w-6 text-blue-600" />
+                                    </div>
+                                  </div>
+                                  <div className="ml-4">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {servico.cliente}
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                      {servico.nomeCarro}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {typeof servico.tipoServico === "object"
+                                    ? servico.tipoServico?.nome
+                                    : servico.tipoServico}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">
+                                  R${" "}
+                                  {(
+                                    servico.valorPersonalizado ||
+                                    servico.tipoServico?.valor ||
+                                    0
+                                  ).toLocaleString("pt-BR", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                  {servico.valorPersonalizado && (
+                                    <span className="ml-1 text-xs text-blue-600">
+                                      (personalizado)
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {new Date(servico.data).toLocaleDateString(
+                                    "pt-BR",
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {servico.participantes &&
+                                servico.participantes.length > 0 ? (
+                                  <div className="flex items-center">
+                                    <UsersIcon className="h-4 w-4 text-gray-400 mr-1" />
+                                    <span className="text-sm text-gray-900">
+                                      {servico.participantes.join(", ")}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-gray-500">-</span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div className="flex items-center justify-end space-x-2">
+                                  <button
+                                    onClick={() => handleEdit(servico)}
+                                    className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
+                                    title="Editar serviço"
+                                  >
+                                    <PencilIcon className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(servico._id)}
+                                    className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
+                                    title="Excluir serviço"
+                                  >
+                                    <TrashIcon className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPendingPago(servico);
+                                    setShowConfirmPago(true);
+                                  }}
+                                  className={`relative inline-flex h-6 w-12 border-2 border-transparent rounded-full cursor-pointer transition-colors duration-200 focus:outline-none ${
+                                    servico.pago ? "bg-green-500" : "bg-gray-300"
+                                  }`}
+                                  aria-pressed={servico.pago}
+                                  tabIndex={0}
+                                  title={servico.pago ? "Marcar como não pago" : "Marcar como pago"}
+                                >
+                                  <span
+                                    className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition-transform duration-200 ${
+                                      servico.pago ? "translate-x-6" : "translate-x-1"
+                                    }`}
+                                  />
+                                  <span className="sr-only">Toggle pago</span>
+                                </button>
+                                <span className={`ml-3 text-xs font-semibold ${servico.pago ? "text-green-700" : "text-red-700"}`}>
+                                  {servico.pago ? "Pago" : "Não Pago"}
+                                </span>
+                              </td>
+                            </tr>
+                          </React.Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -536,7 +671,7 @@ export default function ServicosPage() {
                     totalPages={totalPages}
                     onPageChange={handlePageChange}
                     itemsPerPage={itemsPerPage}
-                    totalItems={servicos.length}
+                    totalItems={totalPages * itemsPerPage}
                   />
                 )}
               </div>
@@ -654,6 +789,34 @@ export default function ServicosPage() {
                   required
                 />
               </div>
+
+              <div>
+                <label
+                  htmlFor="pago"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Pago?
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, pago: !form.pago })}
+                  className={`relative inline-flex h-6 w-12 border-2 border-transparent rounded-full cursor-pointer transition-colors duration-200 focus:outline-none ${
+                    form.pago ? "bg-green-500" : "bg-gray-300"
+                  }`}
+                  aria-pressed={form.pago}
+                  tabIndex={0}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition-transform duration-200 ${
+                      form.pago ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                  <span className="sr-only">Toggle pago</span>
+                </button>
+                <span className={`ml-3 text-sm font-medium ${form.pago ? "text-green-600" : "text-red-600"}`}>
+                  {form.pago ? "Pago" : "Não Pago"}
+                </span>
+              </div>
             </div>
 
             {/* Participantes */}
@@ -705,6 +868,45 @@ export default function ServicosPage() {
             </div>
           </form>
         </Modal>
+
+        {/* Confirmar Pagamento Modal */}
+        {showConfirmPago && pendingPago && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
+              <h2 className="text-lg font-semibold mb-2 text-gray-900">
+                Confirmar alteração de status
+              </h2>
+              <p className="mb-4 text-gray-700">
+                Tem certeza que deseja marcar este serviço como{" "}
+                <span className={pendingPago.pago ? "text-red-600" : "text-green-600"}>
+                  {pendingPago.pago ? "Não Pago" : "Pago"}
+                </span>
+                ?
+              </p>
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={() => {
+                    setShowConfirmPago(false);
+                    setPendingPago(null);
+                  }}
+                  className="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    setShowConfirmPago(false);
+                    await handleTogglePago(pendingPago);
+                    setPendingPago(null);
+                  }}
+                  className={`px-4 py-2 rounded ${pendingPago.pago ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"} text-white`}
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

@@ -18,6 +18,7 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
   BanknotesIcon,
+  PlusIcon,
 } from "@heroicons/react/24/outline";
 
 function getMonthKey(dateStr) {
@@ -58,6 +59,11 @@ export default function DashboardPage() {
   const graficoServicosRef = useRef(null);
   const graficoDespesasRef = useRef(null);
 
+  // Novo estado para valor personalizado da distribuição
+  const [valorDistribuicao, setValorDistribuicao] = useState("");
+  const [isCriandoDespesa, setIsCriandoDespesa] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
@@ -73,28 +79,19 @@ export default function DashboardPage() {
   async function loadDashboardData() {
     try {
       setIsLoading(true);
-      const [servResponse, despResponse, compResponse] = await Promise.all([
-        fetch("/api/servico"),
-        fetch("/api/despesa"),
-        fetch("/api/futuraCompra"),
-      ]);
+      const response = await fetch("/api/dashboard");
+      const { servicos, despesas, compras } = await response.json();
 
-      const [serv, desp, comp] = await Promise.all([
-        servResponse.json(),
-        despResponse.json(),
-        compResponse.json(),
-      ]);
-
-      setServicos(serv);
-      setDespesas(desp);
-      setCompras(comp);
+      setServicos(servicos || []);
+      setDespesas(despesas || []);
+      setCompras(compras || []);
 
       // Agrupamento por mês e por dia
       const mesesSet = new Set();
       const servDia = {};
       const despDia = {};
 
-      serv.forEach((s) => {
+      servicos.forEach((s) => {
         const mesKey = getMonthKey(s.data);
         mesesSet.add(mesKey);
         const diaKey = getDayKey(s.data);
@@ -106,7 +103,7 @@ export default function DashboardPage() {
         servDia[diaKey] = (servDia[diaKey] || 0) + valor;
       });
 
-      desp.forEach((d) => {
+      despesas.forEach((d) => {
         const mesKey = getMonthKey(d.data);
         mesesSet.add(mesKey);
         const diaKey = getDayKey(d.data);
@@ -121,7 +118,7 @@ export default function DashboardPage() {
       setDadosDespesasDia(despDia);
 
       // Carteira: saldo acumulado de todos os meses
-      const totalServ = serv.reduce(
+      const totalServ = servicos.reduce(
         (acc, s) =>
           acc +
           (s.valorPersonalizado
@@ -131,7 +128,7 @@ export default function DashboardPage() {
               : 0),
         0,
       );
-      const totalDesp = desp.reduce((acc, d) => acc + (Number(d.valor) || 0), 0);
+      const totalDesp = despesas.reduce((acc, d) => acc + (Number(d.valor) || 0), 0);
       setCarteira(totalServ - totalDesp);
     } catch (error) {
       console.error("Erro ao carregar dados do dashboard:", error);
@@ -312,9 +309,64 @@ export default function DashboardPage() {
     );
   }
 
+  // Função para criar despesa de retirada
+  async function criarDespesaRetirada(valoresDistribuidos, valorTotal) {
+    setIsCriandoDespesa(true);
+    try {
+      const nomes = Object.keys(valoresDistribuidos);
+      const descricao = nomes
+        .map(
+          (nome) =>
+            `${nome}: R$ ${valoresDistribuidos[nome].toLocaleString("pt-BR", {
+              minimumFractionDigits: 2,
+            })}`,
+        )
+        .join(" | ");
+      const payload = {
+        nome: "Retirada de dinheiro",
+        valor: valorTotal,
+        desc: `Participantes: ${descricao}`,
+        tipo: "gasto",
+        data: new Date().toISOString().slice(0, 10),
+      };
+      const res = await fetch("/api/despesa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Erro ao criar despesa");
+      setToast({ show: true, message: "Despesa de retirada criada!", type: "success" });
+      // Atualiza os dados do dashboard após criar a despesa
+      await loadDashboardData();
+    } catch (e) {
+      setToast({ show: true, message: "Erro ao criar despesa de retirada", type: "error" });
+    } finally {
+      setIsCriandoDespesa(false);
+      setTimeout(() => setToast({ show: false, message: "", type: "success" }), 4000);
+    }
+  }
+
   return (
     <DashboardLayout>
       <div className="p-6">
+        {/* Toast Notification */}
+        {toast.show && (
+          <div
+            className={`fixed top-4 right-4 z-[99999] max-w-sm w-full sm:right-4 sm:left-auto sm:translate-x-0 left-1/2 -translate-x-1/2 ${
+              toast.type === "success" ? "bg-green-500" : "bg-red-500"
+            } text-white p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out`}
+          >
+            <div className="flex items-center">
+              <span className="flex-1">{toast.message}</span>
+              <button
+                onClick={() => setToast({ show: false, message: "", type: "success" })}
+                className="ml-2 text-white hover:text-gray-200"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
         <div className="w-full mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -613,16 +665,27 @@ export default function DashboardPage() {
                     <UsersIcon className="w-6 h-6 text-indigo-600" />
                   </div>
                 </div>
+                {/* Campo para valor personalizado */}
+                <div className="mb-6 flex items-center gap-2">
+                  <label htmlFor="valor-distribuicao" className="text-sm font-medium text-gray-700">
+                    Valor personalizado para simulação:
+                  </label>
+                  <input
+                    id="valor-distribuicao"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={valorDistribuicao}
+                    onChange={e => setValorDistribuicao(e.target.value)}
+                    placeholder="Ex: 1000.00"
+                    className="px-2 py-1 border border-gray-300 rounded-md w-32 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  />
+                  <span className="text-xs text-gray-400">(opcional)</span>
+                </div>
                 <div className="space-y-4">
                   {(() => {
                     const nomes = ["Gabriel", "Davi", "Samuel"];
-                    // Inicializa o valor recebido por cada participante
-                    const valoresParticipantes = {
-                      Gabriel: 0,
-                      Davi: 0,
-                      Samuel: 0,
-                    };
-                    // Para cada serviço, divide o valor igualmente entre os participantes
+                    const valoresParticipantes = { Gabriel: 0, Davi: 0, Samuel: 0 };
                     servicosDoMes.forEach((s) => {
                       const participantes = Array.isArray(s.participantes)
                         ? s.participantes
@@ -642,17 +705,30 @@ export default function DashboardPage() {
                         });
                       }
                     });
-                    // Soma total dos valores dos participantes
-                    const somaValores = Object.values(
-                      valoresParticipantes,
-                    ).reduce((acc, v) => acc + v, 0);
-                    // Se a soma for 0, evita divisão por zero
+                    const somaValores = Object.values(valoresParticipantes).reduce((acc, v) => acc + v, 0);
+                    // Calcula os valores distribuídos para o botão
+                    let valorTotal = carteira;
+                    if (valorDistribuicao && !isNaN(Number(valorDistribuicao))) {
+                      valorTotal = Number(valorDistribuicao);
+                    }
+                    const valoresDistribuidos = {};
+                    nomes.forEach((nome) => {
+                      valoresDistribuidos[nome] =
+                        somaValores > 0
+                          ? valorTotal * (valoresParticipantes[nome] / somaValores)
+                          : 0;
+                    });
+                    // Renderização dos cards
                     return nomes.map((nome, index) => {
                       const valor = somaValores > 0 ? carteira * (valoresParticipantes[nome] / somaValores) : 0;
                       const percentage = somaValores > 0 ? (valoresParticipantes[nome] / somaValores) * 100 : 0;
                       const count = servicosDoMes.filter(
                         (s) => Array.isArray(s.participantes) && s.participantes.includes(nome)
                       ).length;
+                      const valorPersonalizadoDistribuicao =
+                        somaValores > 0 && valorDistribuicao
+                          ? Number(valorDistribuicao) * (valoresParticipantes[nome] / somaValores)
+                          : 0;
                       const colors = [
                         "bg-blue-100 text-blue-600",
                         "bg-green-100 text-green-600",
@@ -676,6 +752,15 @@ export default function DashboardPage() {
                                 R$ {valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                               </span>
                             </div>
+                            {/* Valor personalizado distribuído */}
+                            {valorDistribuicao && (
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-gray-500">Valor personalizado:</span>
+                                <span className="text-xs font-semibold text-blue-700">
+                                  R$ {valorPersonalizadoDistribuicao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            )}
                             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                               <div
                                 className={`h-2 ${barColor[index]} transition-all duration-500`}
@@ -688,6 +773,54 @@ export default function DashboardPage() {
                       );
                     });
                   })()}
+                </div>
+                {/* Botão para criar despesa de retirada */}
+                <div className="mt-6 flex justify-end">
+                  <button
+                    type="button"
+                    disabled={isCriandoDespesa}
+                    className="inline-flex items-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60"
+                    onClick={() => {
+                      // Recalcula os valores distribuídos para o envio correto
+                      const nomes = ["Gabriel", "Davi", "Samuel"];
+                      const valoresParticipantes = { Gabriel: 0, Davi: 0, Samuel: 0 };
+                      servicosDoMes.forEach((s) => {
+                        const participantes = Array.isArray(s.participantes)
+                          ? s.participantes
+                          : [];
+                        if (participantes.length > 0) {
+                          const valorServico = s.valorPersonalizado
+                            ? Number(s.valorPersonalizado)
+                            : s.tipoServico?.valor
+                              ? Number(s.tipoServico.valor)
+                              : 0;
+                          const valorPorParticipante =
+                            valorServico / participantes.length;
+                          participantes.forEach((nome) => {
+                            if (nomes.includes(nome)) {
+                              valoresParticipantes[nome] += valorPorParticipante;
+                            }
+                          });
+                        }
+                      });
+                      const somaValores = Object.values(valoresParticipantes).reduce((acc, v) => acc + v, 0);
+                      let valorTotal = carteira;
+                      if (valorDistribuicao && !isNaN(Number(valorDistribuicao))) {
+                        valorTotal = Number(valorDistribuicao);
+                      }
+                      const valoresDistribuidos = {};
+                      nomes.forEach((nome) => {
+                        valoresDistribuidos[nome] =
+                          somaValores > 0
+                            ? valorTotal * (valoresParticipantes[nome] / somaValores)
+                            : 0;
+                      });
+                      criarDespesaRetirada(valoresDistribuidos, valorTotal);
+                    }}
+                  >
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Criar despesa de retirada
+                  </button>
                 </div>
               </div>
 

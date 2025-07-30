@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../../../context/authContext";
 import DashboardLayout from "../DashboardLayout";
 import Pagination from "../../../components/ui/Pagination";
@@ -35,6 +35,7 @@ export default function DespesasPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1); // ADICIONADO
   const [toastState, setToastState] = useState({
     show: false,
     message: "",
@@ -49,9 +50,9 @@ export default function DespesasPage() {
 
   useEffect(() => {
     if (user) {
-      fetchData();
+      fetchData(currentPage, itemsPerPage);
     }
-  }, [user]);
+  }, [user, currentPage, itemsPerPage]);
 
   // Show toast notification
   const showToast = (message, type = "success") => {
@@ -61,16 +62,14 @@ export default function DespesasPage() {
     }, 4000);
   };
 
-  async function fetchData() {
+  async function fetchData(page = 1, limit = 10) {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/despesa");
-      const data = await response.json();
-      // Ordenar por data (mais recente primeiro)
-      const sortedData = (data || []).sort(
-        (a, b) => new Date(b.data) - new Date(a.data),
-      );
-      setDespesas(sortedData);
+      const response = await fetch(`/api/despesa?page=${page}&limit=${limit}`);
+      const result = await response.json();
+      // result: { data, total, page, totalPages }
+      setDespesas(Array.isArray(result.data) ? result.data : []);
+      setTotalPages(result.totalPages || 1);
     } catch (error) {
       console.error("Erro ao carregar despesas:", error);
       showToast("Erro ao carregar despesas", "error");
@@ -179,16 +178,33 @@ export default function DespesasPage() {
     setEditId(null);
   }
 
-  // Paginação
-  const totalPages = Math.ceil(despesas.length / itemsPerPage);
-  const currentDespesas = despesas.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
+  const currentDespesas = despesas;
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
+
+  // Função para obter o mês fiscal (17 a 16)
+  function getFiscalMonth(dateStr) {
+    const d = new Date(dateStr);
+    let year = d.getFullYear();
+    let month = d.getMonth() + 1;
+    let day = d.getDate();
+    if (day < 17) {
+      if (month === 1) {
+        month = 12;
+        year -= 1;
+      } else {
+        month -= 1;
+      }
+    }
+    return `${year}-${month.toString().padStart(2, "0")}`;
+  }
+
+  // Ordene as despesas por data decrescente (já vem assim da API, mas garanta)
+  const sortedDespesas = [...currentDespesas].sort(
+    (a, b) => new Date(b.data) - new Date(a.data)
+  );
 
   if (!user) {
     return (
@@ -336,79 +352,98 @@ export default function DespesasPage() {
                 {/* Mobile Card View */}
                 <div className="block lg:hidden">
                   <div className="p-4 space-y-4">
-                    {currentDespesas.map((despesa) => (
-                      <div
-                        key={despesa._id}
-                        className="bg-gray-50 rounded-lg shadow-md border border-gray-200 p-4"
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center space-x-3">
-                            <div
-                              className={`p-2 rounded-full ${
-                                despesa.tipo === "gasto"
-                                  ? "bg-red-100"
-                                  : "bg-orange-100"
-                              }`}
-                            >
-                              {despesa.tipo === "gasto" ? (
-                                <ArrowTrendingDownIcon
-                                  className={`h-4 w-4 ${
+                    {sortedDespesas.map((despesa, idx) => {
+                      const prev = sortedDespesas[idx - 1];
+                      const currFiscalMonth = getFiscalMonth(despesa.data);
+                      const prevFiscalMonth = prev ? getFiscalMonth(prev.data) : null;
+                      const showDivider = idx === 0 || currFiscalMonth !== prevFiscalMonth;
+                      return (
+                        <React.Fragment key={despesa._id}>
+                          {showDivider && (
+                            <div className="my-4 flex items-center">
+                              <div className="flex-1 border-t border-gray-300"></div>
+                              <span className="mx-4 text-xs font-semibold text-gray-500">
+                                {new Date(`${currFiscalMonth}-17`).toLocaleDateString("pt-BR", {
+                                  year: "numeric",
+                                  month: "long",
+                                })}
+                              </span>
+                              <div className="flex-1 border-t border-gray-300"></div>
+                            </div>
+                          )}
+                          <div
+                            className="bg-gray-50 rounded-lg shadow-md border border-gray-200 p-4"
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center space-x-3">
+                                <div
+                                  className={`p-2 rounded-full ${
+                                    despesa.tipo === "gasto"
+                                      ? "bg-red-100"
+                                      : "bg-orange-100"
+                                  }`}
+                                >
+                                  {despesa.tipo === "gasto" ? (
+                                    <ArrowTrendingDownIcon
+                                      className={`h-4 w-4 ${
+                                        despesa.tipo === "gasto"
+                                          ? "text-red-600"
+                                          : "text-orange-600"
+                                      }`}
+                                    />
+                                  ) : (
+                                    <ShoppingCartIcon className="h-4 w-4 text-orange-600" />
+                                  )}
+                                </div>
+                                <div>
+                                  <h3 className="font-medium text-gray-900">
+                                    {despesa.nome}
+                                  </h3>
+                                  <p className="text-sm text-gray-600">
+                                    {despesa.desc}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div
+                                  className={`text-sm font-medium ${
                                     despesa.tipo === "gasto"
                                       ? "text-red-600"
                                       : "text-orange-600"
                                   }`}
-                                />
-                              ) : (
-                                <ShoppingCartIcon className="h-4 w-4 text-orange-600" />
-                              )}
+                                >
+                                  R${" "}
+                                  {Number(despesa.valor).toLocaleString("pt-BR", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {new Date(despesa.data).toLocaleDateString(
+                                    "pt-BR",
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <div>
-                              <h3 className="font-medium text-gray-900">
-                                {despesa.nome}
-                              </h3>
-                              <p className="text-sm text-gray-600">
-                                {despesa.desc}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div
-                              className={`text-sm font-medium ${
-                                despesa.tipo === "gasto"
-                                  ? "text-red-600"
-                                  : "text-orange-600"
-                              }`}
-                            >
-                              R${" "}
-                              {Number(despesa.valor).toLocaleString("pt-BR", {
-                                minimumFractionDigits: 2,
-                              })}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {new Date(despesa.data).toLocaleDateString(
-                                "pt-BR",
-                              )}
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleEdit(despesa)}
+                                className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
+                              >
+                                <PencilIcon className="h-4 w-4 mr-1" />
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => handleDelete(despesa._id)}
+                                className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
+                              >
+                                <TrashIcon className="h-4 w-4 mr-1" />
+                                Excluir
+                              </button>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEdit(despesa)}
-                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
-                          >
-                            <PencilIcon className="h-4 w-4 mr-1" />
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => handleDelete(despesa._id)}
-                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
-                          >
-                            <TrashIcon className="h-4 w-4 mr-1" />
-                            Excluir
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                        </React.Fragment>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -435,90 +470,113 @@ export default function DespesasPage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {currentDespesas.map((despesa) => (
-                        <tr key={despesa._id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div
-                                className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${
-                                  despesa.tipo === "gasto"
-                                    ? "bg-red-100"
-                                    : "bg-orange-100"
-                                }`}
-                              >
-                                {despesa.tipo === "gasto" ? (
-                                  <ArrowTrendingDownIcon className="h-6 w-6 text-red-600" />
-                                ) : (
-                                  <ShoppingCartIcon className="h-6 w-6 text-orange-600" />
-                                )}
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {despesa.nome}
+                      {sortedDespesas.map((despesa, idx) => {
+                        const prev = sortedDespesas[idx - 1];
+                        const currFiscalMonth = getFiscalMonth(despesa.data);
+                        const prevFiscalMonth = prev ? getFiscalMonth(prev.data) : null;
+                        const showDivider = idx === 0 || currFiscalMonth !== prevFiscalMonth;
+                        return (
+                          <React.Fragment key={despesa._id}>
+                            {showDivider && (
+                              <tr>
+                                <td colSpan={5} className="py-2">
+                                  <div className="flex items-center">
+                                    <div className="flex-1 border-t border-gray-300"></div>
+                                    <span className="mx-4 text-xs font-semibold text-gray-500">
+                                      {new Date(`${currFiscalMonth}-17`).toLocaleDateString("pt-BR", {
+                                        year: "numeric",
+                                        month: "long",
+                                      })}
+                                    </span>
+                                    <div className="flex-1 border-t border-gray-300"></div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                            <tr className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div
+                                    className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${
+                                      despesa.tipo === "gasto"
+                                        ? "bg-red-100"
+                                        : "bg-orange-100"
+                                    }`}
+                                  >
+                                    {despesa.tipo === "gasto" ? (
+                                      <ArrowTrendingDownIcon className="h-6 w-6 text-red-600" />
+                                    ) : (
+                                      <ShoppingCartIcon className="h-6 w-6 text-orange-600" />
+                                    )}
+                                  </div>
+                                  <div className="ml-4">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {despesa.nome}
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                      {despesa.desc}
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="text-sm text-gray-500">
-                                  {despesa.desc}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    despesa.tipo === "gasto"
+                                      ? "bg-red-100 text-red-800"
+                                      : "bg-orange-100 text-orange-800"
+                                  }`}
+                                >
+                                  <TagIcon className="h-3 w-3 mr-1" />
+                                  {despesa.tipo === "gasto" ? "Gasto" : "Compra"}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div
+                                  className={`text-sm font-medium ${
+                                    despesa.tipo === "gasto"
+                                      ? "text-red-600"
+                                      : "text-orange-600"
+                                  }`}
+                                >
+                                  R${" "}
+                                  {Number(despesa.valor).toLocaleString("pt-BR", {
+                                    minimumFractionDigits: 2,
+                                  })}
                                 </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                despesa.tipo === "gasto"
-                                  ? "bg-red-100 text-red-800"
-                                  : "bg-orange-100 text-orange-800"
-                              }`}
-                            >
-                              <TagIcon className="h-3 w-3 mr-1" />
-                              {despesa.tipo === "gasto" ? "Gasto" : "Compra"}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div
-                              className={`text-sm font-medium ${
-                                despesa.tipo === "gasto"
-                                  ? "text-red-600"
-                                  : "text-orange-600"
-                              }`}
-                            >
-                              R${" "}
-                              {Number(despesa.valor).toLocaleString("pt-BR", {
-                                minimumFractionDigits: 2,
-                              })}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {new Date(despesa.data).toLocaleDateString(
-                                "pt-BR",
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div className="flex items-center justify-end space-x-2">
-                              <button
-                                onClick={() => handleEdit(despesa)}
-                                className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
-                                title="Editar despesa"
-                              >
-                                <PencilIcon className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(despesa._id)}
-                                className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
-                                title="Excluir despesa"
-                              >
-                                <TrashIcon className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {new Date(despesa.data).toLocaleDateString(
+                                    "pt-BR",
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div className="flex items-center justify-end space-x-2">
+                                  <button
+                                    onClick={() => handleEdit(despesa)}
+                                    className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
+                                    title="Editar despesa"
+                                  >
+                                    <PencilIcon className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(despesa._id)}
+                                    className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
+                                    title="Excluir despesa"
+                                  >
+                                    <TrashIcon className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          </React.Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
-
                 {/* Paginação */}
                 {despesas.length > 0 && (
                   <Pagination
@@ -526,7 +584,7 @@ export default function DespesasPage() {
                     totalPages={totalPages}
                     onPageChange={handlePageChange}
                     itemsPerPage={itemsPerPage}
-                    totalItems={despesas.length}
+                    totalItems={totalPages * itemsPerPage}
                   />
                 )}
               </div>

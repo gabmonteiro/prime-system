@@ -4,6 +4,7 @@ import {
   getServicoById,
   updateServico,
   deleteServico,
+  getServicosPaginated, // novo import
 } from "../../../services/servicoService";
 import connectDB from "../../../libs/db";
 
@@ -17,8 +18,11 @@ export async function GET(request) {
       if (!servico) return Response.json({ error: "Not found" }, { status: 404 });
       return Response.json(servico);
     }
-    const servicos = await getServicos();
-    return Response.json(servicos);
+    // Paginação
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "10", 10);
+    const result = await getServicosPaginated(page, limit);
+    return Response.json(result);
   } catch (error) {
     console.error("Error in GET /api/servico:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
