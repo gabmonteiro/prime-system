@@ -31,14 +31,15 @@ export default function ServicosPage() {
     valorPersonalizado: "",
     data: "",
     participantes: [],
-    pago: false, // novo campo
+    pago: false,
   });
   const [tipos, setTipos] = useState([]);
   const [editId, setEditId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  const [totalPages, setTotalPages] = useState(1); // ADICIONADO
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0); // ADICIONADO
   const [toastState, setToastState] = useState({
     show: false,
     message: "",
@@ -76,9 +77,16 @@ export default function ServicosPage() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const result = await response.json();
-      // result: { data, total, page, totalPages }
+      
+      // CORRIGIDO: Adaptando para a nova estrutura da resposta
+      console.log("API Response:", result); // Para debug
+      
+      // A nova estrutura retorna: { data, pagination: { total, page, totalPages, ... }, sortInfo }
       setServicos(Array.isArray(result.data) ? result.data : []);
-      setTotalPages(result.totalPages || 1);
+      setTotalPages(result.pagination?.totalPages || 1);
+      setTotalItems(result.pagination?.total || 0);
+      setCurrentPage(result.pagination?.page || page);
+      
     } catch (error) {
       console.error("Erro ao carregar serviços:", error);
       setServicos([]);
@@ -95,12 +103,11 @@ export default function ServicosPage() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      // Garantir que data seja sempre um array
       const tiposArray = Array.isArray(data) ? data : [];
       setTipos(tiposArray);
     } catch (error) {
       console.error("Erro ao carregar tipos de serviço:", error);
-      setTipos([]); // Garantir que tipos seja sempre um array em caso de erro
+      setTipos([]);
       showToast("Erro ao carregar tipos de serviço", "error");
     }
   }
@@ -125,7 +132,6 @@ export default function ServicosPage() {
     setIsLoading(true);
 
     try {
-      // Corrigir data para fuso local (YYYY-MM-DD -> Date local)
       let dataCorreta = form.data;
       if (form.data && typeof form.data === "string" && form.data.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const [ano, mes, dia] = form.data.split("-").map(Number);
@@ -181,7 +187,7 @@ export default function ServicosPage() {
       participantes: Array.isArray(servico.participantes)
         ? servico.participantes
         : [],
-      pago: typeof servico.pago === "boolean" ? servico.pago : false, // novo campo
+      pago: typeof servico.pago === "boolean" ? servico.pago : false,
     });
     setEditId(servico._id);
     setModalOpen(true);
@@ -195,7 +201,8 @@ export default function ServicosPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id }),
         });
-        setServicos(servicos.filter((s) => s._id !== id));
+        // CORRIGIDO: Recarregar dados após exclusão
+        fetchData(currentPage, itemsPerPage);
         showToast("Serviço excluído com sucesso!", "success");
       } catch (error) {
         console.error("Erro ao excluir serviço:", error);
@@ -262,14 +269,11 @@ export default function ServicosPage() {
     setEditId(null);
   }
 
-  // Paginação
-  const currentServicos = servicos;
-
+  // CORRIGIDO: Removido currentServicos desnecessário
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
 
-  // Função para obter o mês fiscal (17 a 16)
   function getFiscalMonth(dateStr) {
     const d = new Date(dateStr);
     let year = d.getFullYear();
@@ -299,10 +303,8 @@ export default function ServicosPage() {
     );
   }
 
-  // Ordene os serviços por data decrescente (já vem assim da API, mas garanta)
-  const sortedServicos = [...currentServicos].sort(
-    (a, b) => new Date(b.data) - new Date(a.data)
-  );
+  // CORRIGIDO: Os serviços já vêm ordenados da API, não precisa reordenar
+  const sortedServicos = servicos;
 
   return (
     <DashboardLayout>
@@ -421,7 +423,7 @@ export default function ServicosPage() {
                                       : servico.tipoServico}
                                   </p>
                                   <p className="text-sm font-medium text-green-600 mt-1">
-                                    R${" "}
+                                    R\${" "}
                                     {(
                                       servico.valorPersonalizado ||
                                       servico.tipoServico?.valor ||
@@ -556,7 +558,7 @@ export default function ServicosPage() {
                                 <div className="flex items-center">
                                   <div className="flex-shrink-0 h-10 w-10">
                                     <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                      <WrenchScrewdriverIcon className="h-6 w-6 text-blue-600" />
+                                                                            <WrenchScrewdriverIcon className="h-6 w-6 text-blue-600" />
                                     </div>
                                   </div>
                                   <div className="ml-4">
@@ -578,7 +580,7 @@ export default function ServicosPage() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm font-medium text-gray-900">
-                                  R${" "}
+                                  R\${" "}
                                   {(
                                     servico.valorPersonalizado ||
                                     servico.tipoServico?.valor ||
@@ -664,15 +666,17 @@ export default function ServicosPage() {
                   </table>
                 </div>
 
-                {/* Paginação */}
-                {servicos.length > 0 && (
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={handlePageChange}
-                    itemsPerPage={itemsPerPage}
-                    totalItems={totalPages * itemsPerPage}
-                  />
+                {/* CORRIGIDO: Paginação com dados corretos */}
+                {totalPages > 1 && (
+                  <div className="px-6 py-4 border-t border-gray-200">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                      itemsPerPage={itemsPerPage}
+                      totalItems={totalItems}
+                    />
+                  </div>
                 )}
               </div>
             )}
@@ -743,7 +747,7 @@ export default function ServicosPage() {
                   <option value="">Selecione o tipo</option>
                   {Array.isArray(tipos) && tipos.map((tipo) => (
                     <option key={tipo._id} value={tipo._id}>
-                      {tipo.nome} - R$ {tipo.valor}
+                      {tipo.nome} - R\$ {tipo.valor}
                     </option>
                   ))}
                 </select>

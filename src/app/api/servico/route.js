@@ -13,15 +13,20 @@ export async function GET(request) {
     await connectDB();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+    
     if (id) {
       const servico = await getServicoById(id);
       if (!servico) return Response.json({ error: "Not found" }, { status: 404 });
       return Response.json(servico);
     }
-    // Paginação
+    
+    // Paginação com ordenação
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "10", 10);
-    const result = await getServicosPaginated(page, limit);
+    const sortBy = searchParams.get("sortBy") || "createdAt"; // campo padrão para ordenação
+    const sortOrder = searchParams.get("sortOrder") || "desc"; // ordem padrão: mais recente primeiro
+    
+    const result = await getServicosPaginated(page, limit, sortBy, sortOrder);
     return Response.json(result);
   } catch (error) {
     console.error("Error in GET /api/servico:", error);

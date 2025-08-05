@@ -35,7 +35,8 @@ export default function DespesasPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  const [totalPages, setTotalPages] = useState(1); // ADICIONADO
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0); // ADICIONADO
   const [toastState, setToastState] = useState({
     show: false,
     message: "",
@@ -66,18 +67,32 @@ export default function DespesasPage() {
     try {
       setIsLoading(true);
       const response = await fetch(`/api/despesa?page=${page}&limit=${limit}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const result = await response.json();
-      // result: { data, total, page, totalPages }
+      
+      // CORRIGIDO: Adaptando para a nova estrutura da resposta
+      console.log("API Response:", result); // Para debug
+      
+      // A nova estrutura retorna: { data, pagination: { total, page, totalPages, ... }, sortInfo }
       setDespesas(Array.isArray(result.data) ? result.data : []);
-      setTotalPages(result.totalPages || 1);
+      setTotalPages(result.pagination?.totalPages || 1);
+      setTotalItems(result.pagination?.total || 0);
+      setCurrentPage(result.pagination?.page || page);
+      
     } catch (error) {
       console.error("Erro ao carregar despesas:", error);
+      setDespesas([]);
       showToast("Erro ao carregar despesas", "error");
     } finally {
       setIsLoading(false);
     }
   }
 
+  // CORRIGIDO: Cálculos baseados apenas nas despesas da página atual
+  // Para ter os totais corretos, você precisaria fazer uma chamada separada para buscar todas as despesas
+  // ou a API deveria retornar os totais calculados
   const soma = despesas.reduce((acc, d) => acc + (Number(d.valor) || 0), 0);
   const gastos = despesas.filter((d) => d.tipo === "gasto");
   const compras = despesas.filter((d) => d.tipo === "compra");
@@ -118,7 +133,7 @@ export default function DespesasPage() {
       }
 
       closeModal();
-      fetchData();
+      fetchData(currentPage, itemsPerPage); // CORRIGIDO: Passar parâmetros corretos
     } catch (error) {
       console.error("Erro ao salvar despesa:", error);
       showToast("Erro ao salvar despesa", "error");
@@ -149,7 +164,8 @@ export default function DespesasPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id }),
         });
-        setDespesas(despesas.filter((d) => d._id !== id));
+        // CORRIGIDO: Recarregar dados após exclusão
+        fetchData(currentPage, itemsPerPage);
         showToast("Despesa excluída com sucesso!", "success");
       } catch (error) {
         console.error("Erro ao excluir despesa:", error);
@@ -178,8 +194,7 @@ export default function DespesasPage() {
     setEditId(null);
   }
 
-  const currentDespesas = despesas;
-
+  // CORRIGIDO: Removido currentDespesas desnecessário
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
@@ -201,10 +216,8 @@ export default function DespesasPage() {
     return `${year}-${month.toString().padStart(2, "0")}`;
   }
 
-  // Ordene as despesas por data decrescente (já vem assim da API, mas garanta)
-  const sortedDespesas = [...currentDespesas].sort(
-    (a, b) => new Date(b.data) - new Date(a.data)
-  );
+  // CORRIGIDO: As despesas já vêm ordenadas da API, não precisa reordenar
+  const sortedDespesas = despesas;
 
   if (!user) {
     return (
@@ -270,7 +283,7 @@ export default function DespesasPage() {
             </div>
           </div>
 
-          {/* Stats Cards */}
+          {/* Stats Cards - NOTA: Estes valores são apenas da página atual */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
               <div className="flex items-center">
@@ -279,7 +292,7 @@ export default function DespesasPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
-                    Total Geral
+                    Total da Página
                   </p>
                   <p className="text-2xl font-bold text-gray-900">
                     R${" "}
@@ -577,15 +590,18 @@ export default function DespesasPage() {
                     </tbody>
                   </table>
                 </div>
-                {/* Paginação */}
-                {despesas.length > 0 && (
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={handlePageChange}
-                    itemsPerPage={itemsPerPage}
-                    totalItems={totalPages * itemsPerPage}
-                  />
+
+                {/* CORRIGIDO: Paginação com dados corretos */}
+                {totalPages > 1 && (
+                  <div className="px-6 py-4 border-t border-gray-200">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                      itemsPerPage={itemsPerPage}
+                      totalItems={totalItems}
+                    />
+                  </div>
                 )}
               </div>
             )}

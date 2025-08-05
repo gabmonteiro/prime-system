@@ -22,20 +22,49 @@ export async function deleteServico(id) {
   return await Servico.findByIdAndDelete(id);
 }
 
-export async function getServicosPaginated(page = 1, limit = 10) {
-  const skip = (page - 1) * limit;
-  const [data, total] = await Promise.all([
-    Servico.find()
-      .populate("tipoServico")
-      .sort({ data: -1 })
-      .skip(skip)
-      .limit(limit),
-    Servico.countDocuments(),
-  ]);
-  return {
-    data,
-    total,
-    page,
-    totalPages: Math.ceil(total / limit),
-  };
+export async function getServicosPaginated(page = 1, limit = 10, sortBy = "createdAt", sortOrder = "desc") {
+  try {
+    const skip = (page - 1) * limit;
+    
+    // Configurar a ordenação
+    const sortConfig = {};
+    sortConfig[sortBy] = sortOrder === "desc" ? -1 : 1;
+    
+    // Executar as consultas em paralelo para melhor performance
+    const [data, total] = await Promise.all([
+      Servico.find()
+        .populate("tipoServico")
+        .sort(sortConfig)
+        .skip(skip)
+        .limit(limit)
+        .lean(), // Adiciona .lean() para melhor performance
+      Servico.countDocuments(),
+    ]);
+    
+    // Calcular informações de paginação
+    const totalPages = Math.ceil(total / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+    
+    return {
+      data,
+      pagination: {
+        total,
+        page,
+        totalPages,
+        limit,
+        hasNextPage,
+        hasPrevPage,
+        nextPage: hasNextPage ? page + 1 : null,
+        prevPage: hasPrevPage ? page - 1 : null,
+      },
+      sortInfo: {
+        sortBy,
+        sortOrder,
+      },
+    };
+  } catch (error) {
+    console.error("Error in getServicosPaginated:", error);
+    throw error;
+  }
 }
