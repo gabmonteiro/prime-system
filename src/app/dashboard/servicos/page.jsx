@@ -5,6 +5,8 @@ import { useAuth } from "../../../context/authContext";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "../DashboardLayout";
 import Modal from "../../../components/ui/Modal";
+import CustomSelect from "../../../components/ui/Select";
+import DatePicker from "../../../components/ui/DatePicker";
 import Pagination from "../../../components/ui/Pagination";
 import {
   PlusIcon,
@@ -736,21 +738,14 @@ export default function ServicosPage() {
                 >
                   Tipo de Serviço
                 </label>
-                <select
+                {/* Custom Select to prevent native dropdown mispositioning in modal */}
+                <CustomSelect
                   id="tipoServico"
-                  name="tipoServico"
                   value={form.tipoServico}
-                  onChange={handleFormChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Selecione o tipo</option>
-                  {Array.isArray(tipos) && tipos.map((tipo) => (
-                    <option key={tipo._id} value={tipo._id}>
-                      {tipo.nome} - R$ {tipo.valor}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => handleFormChange({ target: { name: "tipoServico", value: val } })}
+                  options={[{ value: "", label: "Selecione o tipo" }, ...(Array.isArray(tipos) ? tipos.map((t) => ({ value: t._id, label: `${t.nome} - R$ ${t.valor}` })) : [])]}
+                  className=""
+                />
               </div>
 
               <div>
@@ -783,13 +778,11 @@ export default function ServicosPage() {
                 >
                   Data do Serviço
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   id="data"
-                  name="data"
                   value={form.data}
-                  onChange={handleFormChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onChange={(val) => handleFormChange({ target: { name: "data", value: val } })}
+                  className=""
                   required
                 />
               </div>

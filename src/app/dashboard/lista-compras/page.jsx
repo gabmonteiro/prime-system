@@ -5,6 +5,7 @@ import DashboardLayout from "../DashboardLayout";
 import Pagination from "../../../components/ui/Pagination";
 import { useRouter } from "next/navigation";
 import Modal from "../../../components/ui/Modal";
+import CustomSelect from "../../../components/ui/Select";
 import {
   PlusIcon,
   ShoppingCartIcon,
@@ -585,18 +586,16 @@ export default function ListaComprasPage() {
                 >
                   Urgência
                 </label>
-                <select
+                <CustomSelect
                   id="urgencia"
-                  name="urgencia"
                   value={form.urgencia}
-                  onChange={handleFormChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  required
-                >
-                  <option value="baixo">Baixa - Pode aguardar</option>
-                  <option value="medio">Média - Planejado para breve</option>
-                  <option value="alto">Urgente - Necessário agora</option>
-                </select>
+                  onChange={(val) => handleFormChange({ target: { name: "urgencia", value: val } })}
+                  options={[
+                    { value: "baixo", label: "Baixa - Pode aguardar" },
+                    { value: "medio", label: "Média - Planejado para breve" },
+                    { value: "alto", label: "Urgente - Necessário agora" },
+                  ]}
+                />
               </div>
             </div>
 

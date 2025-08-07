@@ -4,6 +4,8 @@ import { useAuth } from "../../../context/authContext";
 import DashboardLayout from "../DashboardLayout";
 import Pagination from "../../../components/ui/Pagination";
 import Modal from "../../../components/ui/Modal";
+import CustomSelect from "../../../components/ui/Select";
+import DatePicker from "../../../components/ui/DatePicker";
 import { useRouter } from "next/navigation";
 import {
   PlusIcon,
@@ -662,17 +664,15 @@ export default function DespesasPage() {
                 >
                   Tipo
                 </label>
-                <select
+                <CustomSelect
                   id="tipo"
-                  name="tipo"
                   value={form.tipo}
-                  onChange={handleFormChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  required
-                >
-                  <option value="gasto">Gasto</option>
-                  <option value="compra">Compra</option>
-                </select>
+                  onChange={(val) => handleFormChange({ target: { name: "tipo", value: val } })}
+                  options={[
+                    { value: "gasto", label: "Gasto" },
+                    { value: "compra", label: "Compra" },
+                  ]}
+                />
               </div>
 
               <div>
@@ -682,13 +682,11 @@ export default function DespesasPage() {
                 >
                   Data
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   id="data"
-                  name="data"
                   value={form.data}
-                  onChange={handleFormChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  onChange={(val) => handleFormChange({ target: { name: "data", value: val } })}
+                  className=""
                   required
                 />
               </div>

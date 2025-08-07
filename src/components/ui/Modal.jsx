@@ -1,6 +1,7 @@
 "use client";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { useEffect } from "react";
+import { useEffect, useId, useState } from "react";
+import { createPortal } from "react-dom";
 
 export default function Modal({
   isOpen,
@@ -11,6 +12,12 @@ export default function Modal({
   showCloseButton = true,
   closeOnOverlayClick = true,
 }) {
+  const titleId = useId();
+  const [portalTarget, setPortalTarget] = useState(null);
+
+  useEffect(() => {
+    setPortalTarget(typeof window !== "undefined" ? document.body : null);
+  }, []);
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -49,7 +56,9 @@ export default function Modal({
     full: "max-w-7xl mx-4",
   };
 
-  return (
+  if (!portalTarget) return null;
+
+  return createPortal(
     <div className="modal-overlay animate-fadeIn" style={{ zIndex: 9999 }}>
       <div
         className="absolute inset-0"
@@ -57,13 +66,15 @@ export default function Modal({
       />
 
       <div
-        className={`modal-content w-full ${sizeClasses[size]} animate-fadeInScale`}
+        className={`modal-content w-full ${sizeClasses[size]} animate-fadeIn`}
         style={{ zIndex: 10000 }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
       >
-        {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white rounded-t-xl">
+            <h3 id={titleId} className="text-xl font-semibold text-gray-900">{title}</h3>
             {showCloseButton && (
               <button
                 onClick={onClose}
@@ -75,9 +86,9 @@ export default function Modal({
           </div>
         )}
 
-        {/* Content */}
-        <div className="p-6">{children}</div>
+        <div className="modal-body p-6">{children}</div>
       </div>
-    </div>
+    </div>,
+    portalTarget
   );
 }

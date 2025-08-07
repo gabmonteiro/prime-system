@@ -126,14 +126,30 @@ body {
 
   /* Modal Styles */
   .modal-overlay {
-    @apply fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4;
+    @apply fixed inset-0 bg-black/60 flex items-center justify-center p-4;
     z-index: 9999;
   }
 
   .modal-content {
-    @apply bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-y-auto;
+    @apply bg-white rounded-xl shadow-2xl max-h-[90vh] relative overflow-visible;
     z-index: 10000;
   }
+
+  /* Modal internal scroll area to avoid clipping native popovers (date/select) */
+  .modal-body {
+    @apply max-h-[80vh] overflow-y-auto;
+  }
+
+  /* Improve native selects inside modals */
+  .modal-body select {
+    @apply appearance-none bg-white pr-10 cursor-pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgb(107,114,128)'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem 1rem;
+  }
+
+  /* Keep date native behavior; ensure consistent padding/height via Tailwind on inputs directly */
 
   /* Background Grid Pattern */
   .bg-grid-pattern {
@@ -205,6 +221,15 @@ body {
   }
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes pulse-slow {
   0%,
   100% {
@@ -237,6 +262,12 @@ body {
   animation: fadeInScale 0.6s ease-out forwards;
   opacity: 0;
 }
+
+  /* Simple fade-in without transform to avoid breaking positioned popovers */
+  .animate-fadeIn {
+    animation: fadeIn 0.25s ease-out forwards;
+    opacity: 0;
+  }
 
 .animate-pulse-slow {
   animation: pulse-slow 3s ease-in-out infinite;
