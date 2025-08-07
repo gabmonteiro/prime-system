@@ -423,7 +423,7 @@ export default function ServicosPage() {
                                       : servico.tipoServico}
                                   </p>
                                   <p className="text-sm font-medium text-green-600 mt-1">
-                                    R\${" "}
+                                    R${" "}
                                     {(
                                       servico.valorPersonalizado ||
                                       servico.tipoServico?.valor ||
@@ -580,7 +580,7 @@ export default function ServicosPage() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm font-medium text-gray-900">
-                                  R\${" "}
+                                  R${" "}
                                   {(
                                     servico.valorPersonalizado ||
                                     servico.tipoServico?.valor ||
@@ -747,7 +747,7 @@ export default function ServicosPage() {
                   <option value="">Selecione o tipo</option>
                   {Array.isArray(tipos) && tipos.map((tipo) => (
                     <option key={tipo._id} value={tipo._id}>
-                      {tipo.nome} - R\$ {tipo.valor}
+                      {tipo.nome} - R$ {tipo.valor}
                     </option>
                   ))}
                 </select>
