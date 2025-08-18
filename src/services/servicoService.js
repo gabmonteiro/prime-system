@@ -5,7 +5,9 @@ export async function createServico(data) {
 }
 
 export async function getServicos() {
-  return await Servico.find().populate("tipoServico");
+  return await Servico.find()
+    .populate("tipoServico")
+    .sort({ data: -1, createdAt: -1 }); // Mesma ordenação: data do serviço, depois data de criação
 }
 
 export async function getServicoById(id) {
@@ -22,13 +24,15 @@ export async function deleteServico(id) {
   return await Servico.findByIdAndDelete(id);
 }
 
-export async function getServicosPaginated(page = 1, limit = 10, sortBy = "createdAt", sortOrder = "desc") {
+export async function getServicosPaginated(page = 1, limit = 10) {
   try {
     const skip = (page - 1) * limit;
     
-    // Configurar a ordenação
-    const sortConfig = {};
-    sortConfig[sortBy] = sortOrder === "desc" ? -1 : 1;
+    // Configurar a ordenação composta: primeiro por data do serviço, depois por data de criação
+    const sortConfig = {
+      data: -1, // Data do serviço em ordem decrescente (mais recente primeiro)
+      createdAt: -1, // Data de criação em ordem decrescente (mais recente primeiro)
+    };
     
     // Executar as consultas em paralelo para melhor performance
     const [data, total] = await Promise.all([
@@ -59,8 +63,8 @@ export async function getServicosPaginated(page = 1, limit = 10, sortBy = "creat
         prevPage: hasPrevPage ? page - 1 : null,
       },
       sortInfo: {
-        sortBy,
-        sortOrder,
+        sortBy: "data,createdAt",
+        sortOrder: "desc,desc",
       },
     };
   } catch (error) {

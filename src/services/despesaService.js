@@ -5,7 +5,8 @@ export async function createDespesa(data) {
 }
 
 export async function getDespesas() {
-  return await Despesa.find();
+  return await Despesa.find()
+    .sort({ data: -1, createdAt: -1 }); // Ordenação: data da despesa, depois data de criação
 }
 
 export async function getDespesaById(id) {
@@ -20,13 +21,15 @@ export async function deleteDespesa(id) {
   return await Despesa.findByIdAndDelete(id);
 }
 
-export async function getDespesasPaginated(page = 1, limit = 10, sortBy = "createdAt", sortOrder = "desc") {
+export async function getDespesasPaginated(page = 1, limit = 10) {
   try {
     const skip = (page - 1) * limit;
     
-    // Configurar a ordenação
-    const sortConfig = {};
-    sortConfig[sortBy] = sortOrder === "desc" ? -1 : 1;
+    // Configurar a ordenação composta: primeiro por data da despesa, depois por data de criação
+    const sortConfig = {
+      data: -1, // Data da despesa em ordem decrescente (mais recente primeiro)
+      createdAt: -1, // Data de criação em ordem decrescente (mais recente primeiro)
+    };
     
     // Executar as consultas em paralelo para melhor performance
     const [data, total] = await Promise.all([
@@ -56,8 +59,8 @@ export async function getDespesasPaginated(page = 1, limit = 10, sortBy = "creat
         prevPage: hasPrevPage ? page - 1 : null,
       },
       sortInfo: {
-        sortBy,
-        sortOrder,
+        sortBy: "data,createdAt",
+        sortOrder: "desc,desc",
       },
     };
   } catch (error) {

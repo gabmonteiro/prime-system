@@ -66,11 +66,8 @@ export default function ListaComprasPage() {
       setIsLoading(true);
       const response = await fetch("/api/futuraCompra");
       const data = await response.json();
-      // Ordenar por data de criação (mais recente primeiro)
-      const sortedData = (data || []).sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-      );
-      setCompras(sortedData);
+      // As futuras compras já vêm ordenadas da API por data de criação (mais recente primeiro)
+      setCompras(data || []);
     } catch (error) {
       console.error("Erro ao carregar lista de compras:", error);
       showToast("Erro ao carregar lista de compras", "error");
@@ -96,6 +93,9 @@ export default function ListaComprasPage() {
       const payload = {
         ...form,
         valor: form.valor ? Number(form.valor) : 0,
+        // Adicionar informações do usuário para auditoria
+        userId: user?._id || "system",
+        userName: user?.name || "Sistema",
       };
 
       if (editId) {
@@ -141,7 +141,12 @@ export default function ListaComprasPage() {
         await fetch("/api/futuraCompra", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id }),
+          body: JSON.stringify({ 
+            id,
+            // Adicionar informações do usuário para auditoria
+            userId: user?._id || "system",
+            userName: user?.name || "Sistema",
+          }),
         });
         setCompras(compras.filter((c) => c._id !== id));
         showToast("Item excluído com sucesso!", "success");

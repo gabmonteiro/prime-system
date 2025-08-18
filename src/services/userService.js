@@ -6,7 +6,9 @@ import bcrypt from "bcryptjs";
 export class UserService {
   static async getAllUsers() {
     await connectDB();
-    return await User.find({}).select("-password");
+    return await User.find({})
+      .select("-password")
+      .sort({ createdAt: -1 }); // Ordenação: data de criação (mais recente primeiro)
   }
 
   static async getUserById(id) {

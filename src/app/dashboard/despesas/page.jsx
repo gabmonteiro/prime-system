@@ -116,6 +116,9 @@ export default function DespesasPage() {
       const payload = {
         ...form,
         valor: form.valor ? Number(form.valor) : 0,
+        // Adicionar informações do usuário para auditoria
+        userId: user?._id || "system",
+        userName: user?.name || "Sistema",
       };
 
       if (editId) {
@@ -164,7 +167,12 @@ export default function DespesasPage() {
         await fetch("/api/despesa", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id }),
+          body: JSON.stringify({ 
+            id,
+            // Adicionar informações do usuário para auditoria
+            userId: user?._id || "system",
+            userName: user?.name || "Sistema",
+          }),
         });
         // CORRIGIDO: Recarregar dados após exclusão
         fetchData(currentPage, itemsPerPage);
@@ -218,7 +226,7 @@ export default function DespesasPage() {
     return `${year}-${month.toString().padStart(2, "0")}`;
   }
 
-  // CORRIGIDO: As despesas já vêm ordenadas da API, não precisa reordenar
+  // As despesas vêm ordenadas da API: primeiro por data da despesa, depois por data de criação
   const sortedDespesas = despesas;
 
   if (!user) {

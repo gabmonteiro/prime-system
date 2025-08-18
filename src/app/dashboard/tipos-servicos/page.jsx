@@ -90,6 +90,9 @@ export default function TiposServicosPage() {
       const payload = {
         ...form,
         valor: form.valor ? Number(form.valor) : 0,
+        // Adicionar informações do usuário para auditoria
+        userId: user?._id || "system",
+        userName: user?.name || "Sistema",
       };
 
       if (editId) {
@@ -134,7 +137,12 @@ export default function TiposServicosPage() {
         await fetch("/api/tipoServico", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id }),
+          body: JSON.stringify({ 
+            id,
+            // Adicionar informações do usuário para auditoria
+            userId: user?._id || "system",
+            userName: user?.name || "Sistema",
+          }),
         });
         showToast("Tipo de serviço excluído com sucesso!", "success");
         fetchData();

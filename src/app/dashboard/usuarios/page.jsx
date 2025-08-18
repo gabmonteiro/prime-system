@@ -66,10 +66,8 @@ export default function UsuariosPage() {
       if (response.ok) {
         // Aceita tanto array direto quanto objeto { users: [...] }
         const usersArray = Array.isArray(data) ? data : (data.users || []);
-        const sortedUsers = usersArray.sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-        );
-        setUsuarios(sortedUsers);
+        // Os usuários já vêm ordenados da API por data de criação (mais recente primeiro)
+        setUsuarios(usersArray);
       } else {
         throw new Error(data.error || "Erro ao carregar usuários");
       }
@@ -94,7 +92,12 @@ export default function UsuariosPage() {
     setIsLoading(true);
 
     try {
-      const payload = { ...form };
+      const payload = { 
+        ...form,
+        // Adicionar informações do usuário para auditoria
+        userId: user?._id || "system",
+        userName: user?.name || "Sistema",
+      };
 
       const url = "/api/user";
       const method = editId ? "PUT" : "POST";
@@ -146,6 +149,12 @@ export default function UsuariosPage() {
       try {
         const response = await fetch(`/api/user?id=${id}`, {
           method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            // Adicionar informações do usuário para auditoria
+            userId: user?._id || "system",
+            userName: user?.name || "Sistema",
+          }),
         });
 
         const data = await response.json();
@@ -157,8 +166,8 @@ export default function UsuariosPage() {
         fetchData();
         showToast("Usuário excluído com sucesso!", "success");
       } catch (error) {
-        console.error("Erro ao deletar usuário:", error);
-        showToast("Erro ao deletar usuário: " + error.message, "error");
+        console.error("Erro ao excluir usuário:", error);
+        showToast("Erro ao excluir usuário: " + error.message, "error");
       }
     }
   }

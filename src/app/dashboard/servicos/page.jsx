@@ -146,6 +146,9 @@ export default function ServicosPage() {
         valorPersonalizado: form.valorPersonalizado
           ? Number(form.valorPersonalizado)
           : null,
+        // Adicionar informações do usuário para auditoria
+        userId: user?._id || "system",
+        userName: user?.name || "Sistema",
       };
 
       if (editId) {
@@ -201,7 +204,12 @@ export default function ServicosPage() {
         await fetch("/api/servico", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id }),
+          body: JSON.stringify({ 
+            id,
+            // Adicionar informações do usuário para auditoria
+            userId: user?._id || "system",
+            userName: user?.name || "Sistema",
+          }),
         });
         // CORRIGIDO: Recarregar dados após exclusão
         fetchData(currentPage, itemsPerPage);
@@ -218,7 +226,13 @@ export default function ServicosPage() {
       await fetch("/api/servico", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: servico._id, pago: !servico.pago }),
+        body: JSON.stringify({ 
+          id: servico._id, 
+          pago: !servico.pago,
+          // Adicionar informações do usuário para auditoria
+          userId: user?._id || "system",
+          userName: user?.name || "Sistema",
+        }),
       });
       setServicos((prev) =>
         prev.map((s) =>
@@ -305,7 +319,7 @@ export default function ServicosPage() {
     );
   }
 
-  // CORRIGIDO: Os serviços já vêm ordenados da API, não precisa reordenar
+  // Os serviços vêm ordenados da API: primeiro por data do serviço, depois por data de criação
   const sortedServicos = servicos;
 
   return (
