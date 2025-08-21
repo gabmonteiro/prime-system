@@ -8,10 +8,18 @@ import {
 } from "../../../services/servicoService";
 import connectDB from "../../../libs/db";
 import { AuditService } from "../../../services/auditService";
+import { requirePermission } from "../../../middlewares/permissionMiddleware.js";
 
 export async function GET(request) {
   try {
     await connectDB();
+    
+    // Verificar permissão de leitura
+    const permissionCheck = await requirePermission("servicos", "read")(request);
+    if (permissionCheck.error) {
+      return Response.json({ error: permissionCheck.error }, { status: permissionCheck.status });
+    }
+    
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     
@@ -36,6 +44,13 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     await connectDB();
+    
+    // Verificar permissão de criação
+    const permissionCheck = await requirePermission("servicos", "create")(request);
+    if (permissionCheck.error) {
+      return Response.json({ error: permissionCheck.error }, { status: permissionCheck.status });
+    }
+    
     const data = await request.json();
     
     // Extrair informações do usuário do corpo da requisição
@@ -100,6 +115,13 @@ export async function POST(request) {
 export async function PUT(request) {
   try {
     await connectDB();
+    
+    // Verificar permissão de atualização
+    const permissionCheck = await requirePermission("servicos", "update")(request);
+    if (permissionCheck.error) {
+      return Response.json({ error: permissionCheck.error }, { status: permissionCheck.status });
+    }
+    
     const { id, userId, userName, ...data } = await request.json();
     
     // Buscar dados anteriores para auditoria
@@ -157,6 +179,13 @@ export async function PUT(request) {
 export async function DELETE(request) {
   try {
     await connectDB();
+    
+    // Verificar permissão de exclusão
+    const permissionCheck = await requirePermission("servicos", "delete")(request);
+    if (permissionCheck.error) {
+      return Response.json({ error: permissionCheck.error }, { status: permissionCheck.status });
+    }
+    
     const { id, userId, userName } = await request.json();
     
     // Buscar dados antes da exclusão para auditoria

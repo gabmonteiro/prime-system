@@ -14,7 +14,8 @@ import {
   XMarkIcon,
   Bars3Icon,
   WrenchScrewdriverIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import { 
   HomeIcon as HomeIconSolid, 
@@ -24,7 +25,8 @@ import {
   ChartBarIcon as ChartBarIconSolid,
   UserGroupIcon as UserGroupIconSolid,
   WrenchScrewdriverIcon as WrenchScrewdriverIconSolid,
-  ShieldCheckIcon as ShieldCheckIconSolid
+  ShieldCheckIcon as ShieldCheckIconSolid,
+  DocumentTextIcon as DocumentTextIconSolid
 } from '@heroicons/react/24/solid';
 
 
@@ -80,14 +82,23 @@ import {
         iconSolid: UserGroupIconSolid,
         description: 'Gerenciar usuários'
       },
-      // Link de auditoria apenas para admins
-      ...(user?.isAdmin ? [{
-        href: '/dashboard/auditoria', 
-        label: 'Auditoria', 
-        icon: ShieldCheckIcon,
-        iconSolid: ShieldCheckIconSolid,
-        description: 'Logs do sistema'
-      }] : []),
+      // Links apenas para admins
+      ...(user?.isAdmin ? [
+        {
+          href: '/dashboard/permissoes', 
+          label: 'Permissões', 
+          icon: ShieldCheckIcon,
+          iconSolid: ShieldCheckIconSolid,
+          description: 'Gerenciar roles'
+        },
+        {
+          href: '/dashboard/auditoria', 
+          label: 'Auditoria', 
+          icon: DocumentTextIcon,
+          iconSolid: DocumentTextIconSolid,
+          description: 'Logs do sistema'
+        }
+      ] : []),
     ];
 
     function handleLogout() {
