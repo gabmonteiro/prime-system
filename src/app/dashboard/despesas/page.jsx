@@ -44,6 +44,7 @@ export default function DespesasPage() {
     message: "",
     type: "success",
   });
+  const [fiscalMonthStart, setFiscalMonthStart] = useState(17);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -68,11 +69,17 @@ export default function DespesasPage() {
   async function fetchData(page = 1, limit = 10) {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/despesa?page=${page}&limit=${limit}`);
+      const [response, configResponse] = await Promise.all([
+        fetch(`/api/despesa?page=${page}&limit=${limit}`),
+        fetch("/api/system-config")
+      ]);
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
       const result = await response.json();
+      const configData = await configResponse.json();
       
       // CORRIGIDO: Adaptando para a nova estrutura da resposta
       console.log("API Response:", result); // Para debug
@@ -82,6 +89,7 @@ export default function DespesasPage() {
       setTotalPages(result.pagination?.totalPages || 1);
       setTotalItems(result.pagination?.total || 0);
       setCurrentPage(result.pagination?.page || page);
+      setFiscalMonthStart(configData.fiscalMonthStart || 17);
       
     } catch (error) {
       console.error("Erro ao carregar despesas:", error);
@@ -209,13 +217,14 @@ export default function DespesasPage() {
     setCurrentPage(page);
   };
 
-  // Função para obter o mês fiscal (17 a 16)
+  // Função para obter o mês fiscal (configurável)
   function getFiscalMonth(dateStr) {
     const d = new Date(dateStr);
     let year = d.getFullYear();
     let month = d.getMonth() + 1;
     let day = d.getDate();
-    if (day < 17) {
+    // Mês fiscal configurável
+    if (day < fiscalMonthStart) {
       if (month === 1) {
         month = 12;
         year -= 1;

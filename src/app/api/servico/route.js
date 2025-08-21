@@ -43,6 +43,24 @@ export async function POST(request) {
     
     console.log("POST /api/servico - Dados recebidos:", { userId, userName, servicoData });
     
+    // Limpar campos baseado no campo semTipo
+    if (servicoData.semTipo) {
+      // Se sem tipo, remover tipoServico e garantir valorPersonalizado
+      delete servicoData.tipoServico;
+      if (!servicoData.valorPersonalizado) {
+        return Response.json({ 
+          error: "Valor personalizado é obrigatório quando não há tipo de serviço" 
+        }, { status: 400 });
+      }
+    } else {
+      // Se com tipo, garantir tipoServico
+      if (!servicoData.tipoServico) {
+        return Response.json({ 
+          error: "Tipo de serviço é obrigatório quando não é marcado como 'sem tipo'" 
+        }, { status: 400 });
+      }
+    }
+    
     const servico = await createServico(servicoData);
     
     console.log("Serviço criado com sucesso:", servico._id);
@@ -86,6 +104,24 @@ export async function PUT(request) {
     
     // Buscar dados anteriores para auditoria
     const previousData = await getServicoById(id);
+    
+    // Limpar campos baseado no campo semTipo
+    if (data.semTipo) {
+      // Se sem tipo, remover tipoServico e garantir valorPersonalizado
+      delete data.tipoServico;
+      if (!data.valorPersonalizado) {
+        return Response.json({ 
+          error: "Valor personalizado é obrigatório quando não há tipo de serviço" 
+        }, { status: 400 });
+      }
+    } else {
+      // Se com tipo, garantir tipoServico
+      if (!data.tipoServico) {
+        return Response.json({ 
+          error: "Tipo de serviço é obrigatório quando não é marcado como 'sem tipo'" 
+        }, { status: 400 });
+      }
+    }
     
     const servico = await updateServico(id, data);
     if (!servico) return Response.json({ error: "Not found" }, { status: 404 });

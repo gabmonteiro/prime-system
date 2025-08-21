@@ -16,7 +16,6 @@ import {
   CurrencyDollarIcon,
   PencilIcon,
   TrashIcon,
-  ChevronRightIcon,
   UsersIcon,
 } from "@heroicons/react/24/outline";
 
@@ -29,6 +28,7 @@ export default function ServicosPage() {
   const [form, setForm] = useState({
     cliente: "",
     nomeCarro: "",
+    semTipo: false,
     tipoServico: "",
     valorPersonalizado: "",
     data: "",
@@ -36,12 +36,13 @@ export default function ServicosPage() {
     pago: false,
   });
   const [tipos, setTipos] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
   const [editId, setEditId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0); // ADICIONADO
+  const [totalItems, setTotalItems] = useState(0);
   const [toastState, setToastState] = useState({
     show: false,
     message: "",
@@ -49,6 +50,7 @@ export default function ServicosPage() {
   });
   const [pendingPago, setPendingPago] = useState(null);
   const [showConfirmPago, setShowConfirmPago] = useState(false);
+  const [fiscalMonthStart, setFiscalMonthStart] = useState(17);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -60,6 +62,7 @@ export default function ServicosPage() {
     if (user) {
       fetchData(currentPage, itemsPerPage);
       fetchTipos();
+      fetchUsuarios();
     }
   }, [user, currentPage, itemsPerPage]);
 
@@ -74,20 +77,23 @@ export default function ServicosPage() {
   async function fetchData(page = 1, limit = 10) {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/servico?page=${page}&limit=${limit}`);
+      const [response, configResponse] = await Promise.all([
+        fetch(`/api/servico?page=${page}&limit=${limit}`),
+        fetch("/api/system-config")
+      ]);
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
       const result = await response.json();
+      const configData = await configResponse.json();
       
-      // CORRIGIDO: Adaptando para a nova estrutura da resposta
-      console.log("API Response:", result); // Para debug
-      
-      // A nova estrutura retorna: { data, pagination: { total, page, totalPages, ... }, sortInfo }
       setServicos(Array.isArray(result.data) ? result.data : []);
       setTotalPages(result.pagination?.totalPages || 1);
       setTotalItems(result.pagination?.total || 0);
       setCurrentPage(result.pagination?.page || page);
+      setFiscalMonthStart(configData.fiscalMonthStart || 17);
       
     } catch (error) {
       console.error("Erro ao carregar serviços:", error);
@@ -114,18 +120,45 @@ export default function ServicosPage() {
     }
   }
 
-  function handleFormChange(e) {
-    const { name, value, type, checked } = e.target;
-    setForm({ 
-      ...form, 
-      [name]: type === "checkbox" ? checked : value 
-    });
+  async function fetchUsuarios() {
+    try {
+      const response = await fetch("/api/user");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      const usuariosArray = Array.isArray(data) ? data : [];
+      setUsuarios(usuariosArray);
+    } catch (error) {
+      console.error("Erro ao carregar usuários:", error);
+      setUsuarios([]);
+      showToast("Erro ao carregar usuários", "error");
+    }
   }
 
-  function handleParticipanteChange(participante, isChecked) {
+  function handleFormChange(e) {
+    const { name, value, type, checked } = e.target;
+    
+    if (name === "semTipo") {
+      // Se marcar "sem tipo", limpa o tipo de serviço e torna valor personalizado obrigatório
+      setForm({ 
+        ...form, 
+        [name]: checked,
+        tipoServico: checked ? "" : form.tipoServico,
+        valorPersonalizado: checked ? (form.valorPersonalizado || "") : form.valorPersonalizado
+      });
+    } else {
+      setForm({ 
+        ...form, 
+        [name]: type === "checkbox" ? checked : value 
+      });
+    }
+  }
+
+  function handleParticipanteChange(participanteId, isChecked) {
     const newParticipantes = isChecked
-      ? [...form.participantes, participante]
-      : form.participantes.filter((p) => p !== participante);
+      ? [...form.participantes, participanteId]
+      : form.participantes.filter((p) => p !== participanteId);
     setForm({ ...form, participantes: newParticipantes });
   }
 
@@ -134,22 +167,55 @@ export default function ServicosPage() {
     setIsLoading(true);
 
     try {
+      // Validações específicas para o campo semTipo
+      if (form.semTipo && !form.valorPersonalizado) {
+        showToast("Valor personalizado é obrigatório quando não há tipo de serviço", "error");
+        setIsLoading(false);
+        return;
+      }
+
+      if (!form.semTipo && !form.tipoServico) {
+        showToast("Tipo de serviço é obrigatório quando não é marcado como 'sem tipo'", "error");
+        setIsLoading(false);
+        return;
+      }
+
       let dataCorreta = form.data;
       if (form.data && typeof form.data === "string" && form.data.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const [ano, mes, dia] = form.data.split("-").map(Number);
         dataCorreta = new Date(ano, mes - 1, dia);
       }
 
-      const payload = {
-        ...form,
-        data: dataCorreta,
-        valorPersonalizado: form.valorPersonalizado
-          ? Number(form.valorPersonalizado)
-          : null,
-        // Adicionar informações do usuário para auditoria
-        userId: user?._id || "system",
-        userName: user?.name || "Sistema",
-      };
+      // Preparar payload baseado no campo semTipo
+      let payload;
+      if (form.semTipo) {
+        // Se sem tipo, não enviar tipoServico
+        payload = {
+          cliente: form.cliente,
+          nomeCarro: form.nomeCarro,
+          semTipo: true,
+          valorPersonalizado: Number(form.valorPersonalizado),
+          data: dataCorreta,
+          participantes: form.participantes,
+          pago: form.pago,
+          userId: user?._id || "system",
+          userName: user?.name || "Sistema",
+        };
+      } else {
+        // Se com tipo, enviar tipoServico
+        payload = {
+          cliente: form.cliente,
+          nomeCarro: form.nomeCarro,
+          semTipo: false,
+          tipoServico: form.tipoServico,
+          valorPersonalizado: form.valorPersonalizado ? Number(form.valorPersonalizado) : null,
+          data: dataCorreta,
+          participantes: form.participantes,
+          pago: form.pago,
+          userId: user?._id || "system",
+          userName: user?.name || "Sistema",
+        };
+      }
 
       if (editId) {
         await fetch("/api/servico", {
@@ -181,6 +247,7 @@ export default function ServicosPage() {
     setForm({
       cliente: servico.cliente || "",
       nomeCarro: servico.nomeCarro || "",
+      semTipo: servico.semTipo || false,
       tipoServico:
         typeof servico.tipoServico === "object"
           ? servico.tipoServico?._id
@@ -190,7 +257,7 @@ export default function ServicosPage() {
         ? new Date(servico.data).toISOString().slice(0, 10)
         : "",
       participantes: Array.isArray(servico.participantes)
-        ? servico.participantes
+        ? servico.participantes.map(p => typeof p === 'object' ? p._id : p)
         : [],
       pago: typeof servico.pago === "boolean" ? servico.pago : false,
     });
@@ -206,12 +273,10 @@ export default function ServicosPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             id,
-            // Adicionar informações do usuário para auditoria
             userId: user?._id || "system",
             userName: user?.name || "Sistema",
           }),
         });
-        // CORRIGIDO: Recarregar dados após exclusão
         fetchData(currentPage, itemsPerPage);
         showToast("Serviço excluído com sucesso!", "success");
       } catch (error) {
@@ -229,7 +294,6 @@ export default function ServicosPage() {
         body: JSON.stringify({ 
           id: servico._id, 
           pago: !servico.pago,
-          // Adicionar informações do usuário para auditoria
           userId: user?._id || "system",
           userName: user?.name || "Sistema",
         }),
@@ -261,6 +325,7 @@ export default function ServicosPage() {
     setForm({
       cliente: "",
       nomeCarro: "",
+      semTipo: false,
       tipoServico: "",
       valorPersonalizado: "",
       data: localDate,
@@ -276,6 +341,7 @@ export default function ServicosPage() {
     setForm({
       cliente: "",
       nomeCarro: "",
+      semTipo: false,
       tipoServico: "",
       valorPersonalizado: "",
       data: "",
@@ -285,7 +351,6 @@ export default function ServicosPage() {
     setEditId(null);
   }
 
-  // CORRIGIDO: Removido currentServicos desnecessário
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
@@ -295,23 +360,41 @@ export default function ServicosPage() {
     let year = d.getFullYear();
     let month = d.getMonth() + 1;
     let day = d.getDate();
-    if (day < 17) {
+    // Mês fiscal configurável
+    if (day < fiscalMonthStart) {
       if (month === 1) {
         month = 12;
-        year -= 1;
+        year--;
       } else {
-        month -= 1;
+        month--;
       }
     }
     return `${year}-${month.toString().padStart(2, "0")}`;
   }
 
-  if (!user) {
+  const currentFiscalMonth = getFiscalMonth(new Date().toISOString());
+
+  const fiscalMonthServicos = servicos.filter((servico) => {
+    const servicoMonth = getFiscalMonth(servico.data);
+    return servicoMonth === currentFiscalMonth;
+  });
+
+  const totalFiscalMonth = fiscalMonthServicos.reduce((total, servico) => {
+    const valor = servico.valorPersonalizado || servico.tipoServico?.valor || 0;
+    return total + valor;
+  }, 0);
+
+  const totalGeral = servicos.reduce((total, servico) => {
+    const valor = servico.valorPersonalizado || servico.tipoServico?.valor || 0;
+    return total + valor;
+  }, 0);
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <UserIcon className="h-8 w-8 text-blue-600" />
+            <WrenchScrewdriverIcon className="h-8 w-8 text-blue-600" />
           </div>
           <p className="text-lg text-gray-600">Carregando...</p>
         </div>
@@ -319,16 +402,13 @@ export default function ServicosPage() {
     );
   }
 
-  // Os serviços vêm ordenados da API: primeiro por data do serviço, depois por data de criação
-  const sortedServicos = servicos;
-
   return (
     <DashboardLayout>
       <div className="p-6">
         {/* Toast Notification */}
         {toastState.show && (
           <div
-            className={`fixed top-4 right-4 z-[99999] max-w-sm w-full sm:right-4 sm:left-auto sm:translate-x-0 left-1/2 -translate-x-1/2 ${
+            className={`fixed top-4 right-4 z-50 max-w-sm w-full sm:right-4 sm:left-auto sm:translate-x-0 left-1/2 -translate-x-1/2 ${
               toastState.type === "success" ? "bg-green-500" : "bg-red-500"
             } text-white p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out`}
           >
@@ -356,21 +436,74 @@ export default function ServicosPage() {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">
-                    Gerenciar Serviços
+                    Serviços
                   </h1>
                   <p className="text-gray-600">
-                    Controle todos os serviços prestados
+                    Gerencie todos os serviços realizados
                   </p>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  onClick={openModal}
-                  className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <PlusIcon className="h-5 w-5 mr-2" />
-                  Novo Serviço
-                </button>
+              <button
+                onClick={openModal}
+                className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Novo Serviço
+              </button>
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <WrenchScrewdriverIcon className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Total de Serviços
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {servicos.length}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <CurrencyDollarIcon className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Geral
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    R$ {totalGeral.toLocaleString("pt-BR", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <CalendarIcon className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Mês Fiscal Atual
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    R$ {totalFiscalMonth.toLocaleString("pt-BR", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -391,16 +524,25 @@ export default function ServicosPage() {
                   Nenhum serviço encontrado
                 </h3>
                 <p className="text-gray-600">
-                  Comece registrando o primeiro serviço realizado.
+                  Comece criando seu primeiro serviço.
                 </p>
+                <div className="mt-6">
+                  <button
+                    onClick={openModal}
+                    className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Novo Serviço
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="overflow-hidden">
                 {/* Mobile Card View */}
                 <div className="block lg:hidden">
                   <div className="p-4 space-y-4">
-                    {sortedServicos.map((servico, idx) => {
-                      const prev = sortedServicos[idx - 1];
+                    {servicos.map((servico, idx) => {
+                      const prev = servicos[idx - 1];
                       const currFiscalMonth = getFiscalMonth(servico.data);
                       const prevFiscalMonth = prev ? getFiscalMonth(prev.data) : null;
                       const showDivider = idx === 0 || currFiscalMonth !== prevFiscalMonth;
@@ -419,6 +561,7 @@ export default function ServicosPage() {
                             </div>
                           )}
                           <div
+                            key={servico._id}
                             className="bg-gray-50 rounded-lg shadow-md border border-gray-200 p-4"
                           >
                             <div className="flex items-start justify-between mb-3">
@@ -434,39 +577,33 @@ export default function ServicosPage() {
                                     {servico.nomeCarro}
                                   </p>
                                   <p className="text-xs text-gray-500">
-                                    {typeof servico.tipoServico === "object"
-                                      ? servico.tipoServico?.nome
-                                      : servico.tipoServico}
+                                    {servico.semTipo ? "Sem tipo específico" : servico.tipoServico?.nome || "N/A"}
                                   </p>
-                                  <p className="text-sm font-medium text-green-600 mt-1">
-                                    R${" "}
-                                    {(
-                                      servico.valorPersonalizado ||
-                                      servico.tipoServico?.valor ||
-                                      0
-                                    ).toLocaleString("pt-BR", {
-                                      minimumFractionDigits: 2,
-                                    })}
-                                    {servico.valorPersonalizado && (
-                                      <span className="text-xs text-blue-600 ml-1">
-                                        (personalizado)
-                                      </span>
-                                    )}
+                                  <p className="text-xs text-gray-400">
+                                    {servico.participantes && servico.participantes.length > 0 
+                                      ? servico.participantes.map(p => 
+                                          typeof p === 'object' ? p.name : p
+                                        ).join(", ")
+                                      : "Sem participantes"
+                                    }
                                   </p>
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {new Date(servico.data).toLocaleDateString(
-                                    "pt-BR",
-                                  )}
+                                <div className="text-sm font-medium text-gray-900 mb-1">
+                                  R$ {(
+                                    servico.valorPersonalizado ||
+                                    servico.tipoServico?.valor ||
+                                    0
+                                  ).toLocaleString("pt-BR", {
+                                    minimumFractionDigits: 2,
+                                  })}
                                 </div>
-                                {servico.participantes &&
-                                  servico.participantes.length > 0 && (
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      {servico.participantes.join(", ")}
-                                    </div>
-                                  )}
+                                <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                                  servico.pago ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                                }`}>
+                                  {servico.pago ? "Pago" : "Não Pago"}
+                                </span>
                               </div>
                             </div>
                             <div className="flex space-x-2">
@@ -485,31 +622,6 @@ export default function ServicosPage() {
                                 Excluir
                               </button>
                             </div>
-                            <p className="text-xs mt-1 flex items-center">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setPendingPago(servico);
-                                  setShowConfirmPago(true);
-                                }}
-                                className={`relative inline-flex h-6 w-12 border-2 border-transparent rounded-full cursor-pointer transition-colors duration-200 focus:outline-none ${
-                                  servico.pago ? "bg-green-500" : "bg-gray-300"
-                                }`}
-                                aria-pressed={servico.pago}
-                                tabIndex={0}
-                                title={servico.pago ? "Marcar como não pago" : "Marcar como pago"}
-                              >
-                                <span
-                                  className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition-transform duration-200 ${
-                                    servico.pago ? "translate-x-6" : "translate-x-1"
-                                  }`}
-                                />
-                                <span className="sr-only">Toggle pago</span>
-                              </button>
-                              <span className={`ml-3 text-xs font-semibold ${servico.pago ? "text-green-700" : "text-red-700"}`}>
-                                {servico.pago ? "Pago" : "Não Pago"}
-                              </span>
-                            </p>
                           </div>
                         </React.Fragment>
                       );
@@ -523,10 +635,13 @@ export default function ServicosPage() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Cliente / Veículo
+                          Cliente
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tipo de Serviço
+                          Veículo
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tipo
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Valor
@@ -541,13 +656,13 @@ export default function ServicosPage() {
                           Ações
                         </th>
                         <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Pago
+                          Status
                         </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {sortedServicos.map((servico, idx) => {
-                        const prev = sortedServicos[idx - 1];
+                      {servicos.map((servico, idx) => {
+                        const prev = servicos[idx - 1];
                         const currFiscalMonth = getFiscalMonth(servico.data);
                         const prevFiscalMonth = prev ? getFiscalMonth(prev.data) : null;
                         const showDivider = idx === 0 || currFiscalMonth !== prevFiscalMonth;
@@ -555,7 +670,7 @@ export default function ServicosPage() {
                           <React.Fragment key={servico._id}>
                             {showDivider && (
                               <tr>
-                                <td colSpan={7} className="py-2">
+                                <td colSpan={8} className="py-2">
                                   <div className="flex items-center">
                                     <div className="flex-1 border-t border-gray-300"></div>
                                     <span className="mx-4 text-xs font-semibold text-gray-500">
@@ -569,12 +684,12 @@ export default function ServicosPage() {
                                 </td>
                               </tr>
                             )}
-                            <tr className="hover:bg-gray-50">
+                            <tr key={servico._id} className="hover:bg-gray-50">
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                   <div className="flex-shrink-0 h-10 w-10">
                                     <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                                                            <WrenchScrewdriverIcon className="h-6 w-6 text-blue-600" />
+                                      <UserIcon className="h-6 w-6 text-blue-600" />
                                     </div>
                                   </div>
                                   <div className="ml-4">
@@ -589,15 +704,23 @@ export default function ServicosPage() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-900">
-                                  {typeof servico.tipoServico === "object"
-                                    ? servico.tipoServico?.nome
-                                    : servico.tipoServico}
+                                  {servico.nomeCarro}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {servico.semTipo ? (
+                                    <span className="text-orange-600 font-medium">
+                                      Sem tipo específico
+                                    </span>
+                                  ) : (
+                                    servico.tipoServico?.nome || "N/A"
+                                  )}
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm font-medium text-gray-900">
-                                  R${" "}
-                                  {(
+                                  R$ {(
                                     servico.valorPersonalizado ||
                                     servico.tipoServico?.valor ||
                                     0
@@ -607,6 +730,11 @@ export default function ServicosPage() {
                                   {servico.valorPersonalizado && (
                                     <span className="ml-1 text-xs text-blue-600">
                                       (personalizado)
+                                    </span>
+                                  )}
+                                  {servico.semTipo && (
+                                    <span className="ml-1 text-xs text-orange-600">
+                                      (sem tipo)
                                     </span>
                                   )}
                                 </div>
@@ -624,7 +752,9 @@ export default function ServicosPage() {
                                   <div className="flex items-center">
                                     <UsersIcon className="h-4 w-4 text-gray-400 mr-1" />
                                     <span className="text-sm text-gray-900">
-                                      {servico.participantes.join(", ")}
+                                      {servico.participantes.map(p => 
+                                        typeof p === 'object' ? p.name : p
+                                      ).join(", ")}
                                     </span>
                                   </div>
                                 ) : (
@@ -682,7 +812,7 @@ export default function ServicosPage() {
                   </table>
                 </div>
 
-                {/* CORRIGIDO: Paginação com dados corretos */}
+                {/* Paginação */}
                 {totalPages > 1 && (
                   <div className="px-6 py-4 border-t border-gray-200">
                     <Pagination
@@ -747,27 +877,49 @@ export default function ServicosPage() {
 
               <div>
                 <label
+                  htmlFor="semTipo"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Sem Tipo de Serviço?
+                </label>
+                <input
+                  type="checkbox"
+                  id="semTipo"
+                  name="semTipo"
+                  checked={form.semTipo}
+                  onChange={handleFormChange}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span className="ml-2 text-sm text-gray-700">
+                  Se marcado, o valor será personalizado.
+                </span>
+              </div>
+
+              <div>
+                <label
                   htmlFor="tipoServico"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Tipo de Serviço
+                  Tipo de Serviço (se aplicável)
                 </label>
-                {/* Custom Select to prevent native dropdown mispositioning in modal */}
                 <CustomSelect
                   id="tipoServico"
                   value={form.tipoServico}
                   onChange={(val) => handleFormChange({ target: { name: "tipoServico", value: val } })}
                   options={[{ value: "", label: "Selecione o tipo" }, ...(Array.isArray(tipos) ? tipos.map((t) => ({ value: t._id, label: `${t.nome} - R$ ${t.valor}` })) : [])]}
                   className=""
+                  disabled={form.semTipo}
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="valorPersonalizado"
-                  className="block text-sm font-medium text-gray-700 mb-2"
+                  className={`block text-sm font-medium mb-2 ${
+                    form.semTipo ? "text-red-700" : "text-gray-700"
+                  }`}
                 >
-                  Valor Personalizado (opcional)
+                  Valor Personalizado {form.semTipo ? "(obrigatório)" : "(opcional)"}
                 </label>
                 <input
                   type="number"
@@ -777,11 +929,21 @@ export default function ServicosPage() {
                   onChange={handleFormChange}
                   step="0.01"
                   min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Deixe vazio para usar valor padrão"
+                  required={form.semTipo}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    form.semTipo 
+                      ? "border-red-300 focus:ring-red-500" 
+                      : "border-gray-300 focus:ring-blue-500"
+                  }`}
+                  placeholder={form.semTipo ? "Valor obrigatório" : "Deixe vazio para usar valor padrão"}
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Se preenchido, sobrescreverá o valor padrão do tipo de serviço
+                <p className={`text-xs mt-1 ${
+                  form.semTipo ? "text-red-600" : "text-gray-500"
+                }`}>
+                  {form.semTipo 
+                    ? "Valor obrigatório quando não há tipo de serviço" 
+                    : "Se preenchido, sobrescreverá o valor padrão do tipo de serviço"
+                  }
                 </p>
               </div>
 
@@ -837,17 +999,17 @@ export default function ServicosPage() {
               </label>
 
               <div className="space-y-3">
-                {["Gabriel", "Samuel", "Davi"].map((nome) => (
-                  <label key={nome} className="flex items-center">
+                {usuarios.map((usuario) => (
+                  <label key={usuario._id} className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={form.participantes.includes(nome)}
+                      checked={form.participantes.includes(usuario._id)}
                       onChange={(e) =>
-                        handleParticipanteChange(nome, e.target.checked)
+                        handleParticipanteChange(usuario._id, e.target.checked)
                       }
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
-                    <span className="ml-2 text-sm text-gray-700">{nome}</span>
+                    <span className="ml-2 text-sm text-gray-700">{usuario.name}</span>
                   </label>
                 ))}
               </div>
@@ -857,14 +1019,14 @@ export default function ServicosPage() {
               <button
                 type="button"
                 onClick={closeModal}
-                className="btn-secondary flex-1"
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                 disabled={isLoading}
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="btn-primary flex-1"
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -873,7 +1035,7 @@ export default function ServicosPage() {
                     Salvando...
                   </span>
                 ) : (
-                  `${editId ? "Atualizar" : "Criar"} Serviço`
+                  `${editId ? "Salvar" : "Criar"} Serviço`
                 )}
               </button>
             </div>

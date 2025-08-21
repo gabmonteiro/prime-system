@@ -7,17 +7,20 @@ export async function createServico(data) {
 export async function getServicos() {
   return await Servico.find()
     .populate("tipoServico")
+    .populate("participantes", "name email")
     .sort({ data: -1, createdAt: -1 }); // Mesma ordenação: data do serviço, depois data de criação
 }
 
 export async function getServicoById(id) {
-  return await Servico.findById(id).populate("tipoServico");
+  return await Servico.findById(id)
+    .populate("tipoServico")
+    .populate("participantes", "name email");
 }
 
 export async function updateServico(id, data) {
-  return await Servico.findByIdAndUpdate(id, data, { new: true }).populate(
-    "tipoServico",
-  );
+  return await Servico.findByIdAndUpdate(id, data, { new: true })
+    .populate("tipoServico")
+    .populate("participantes", "name email");
 }
 
 export async function deleteServico(id) {
@@ -38,6 +41,7 @@ export async function getServicosPaginated(page = 1, limit = 10) {
     const [data, total] = await Promise.all([
       Servico.find()
         .populate("tipoServico")
+        .populate("participantes", "name email")
         .sort(sortConfig)
         .skip(skip)
         .limit(limit)

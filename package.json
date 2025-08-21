@@ -10,7 +10,9 @@
     "lint:fix": "next lint --fix",
     "prettier:fix": "prettier --write .",
     "prettier:check": "prettier --check .",
-    "seed": "node seedDatabase.js"
+    "seed": "node seedDatabase.js",
+    "migrate:participantes": "node migrateParticipantes.js",
+    "init:config": "node initializeSystemConfig.js"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

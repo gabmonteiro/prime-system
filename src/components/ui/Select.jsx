@@ -19,6 +19,7 @@ export default function Select({
   options,
   placeholder = "Selecione...",
   className = "",
+  disabled = false,
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
@@ -45,14 +46,21 @@ export default function Select({
         ref={buttonRef}
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-left bg-white flex items-center justify-between ${className}`}
+        onClick={() => !disabled && setOpen((v) => !v)}
+        disabled={disabled}
+        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-left flex items-center justify-between ${
+          disabled 
+            ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed" 
+            : "border-gray-300 bg-white text-gray-900 hover:bg-gray-50"
+        } ${className}`}
       >
         <span className={selectedOption ? "text-gray-900" : "text-gray-400"}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <svg
-          className="h-4 w-4 text-gray-500 ml-2 shrink-0"
+          className={`h-4 w-4 ml-2 shrink-0 ${
+            disabled ? "text-gray-300" : "text-gray-500"
+          }`}
           viewBox="0 0 20 20"
           fill="currentColor"
           aria-hidden="true"
@@ -65,7 +73,7 @@ export default function Select({
         </svg>
       </button>
 
-      {open && (
+      {open && !disabled && (
         <ul
           role="listbox"
           aria-labelledby={id}

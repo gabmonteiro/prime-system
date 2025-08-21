@@ -22,6 +22,10 @@ export async function GET() {
         path: "tipoServico",
         select: "nome valor"
       })
+      .populate({
+        path: "participantes",
+        select: "name email"
+      })
       .lean();
 
     // Despesas: só os campos usados

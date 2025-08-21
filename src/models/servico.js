@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import "./tipoServico.js";
+import "./user.js";
 
 const ServicoSchema = new mongoose.Schema({
   cliente: {
@@ -12,10 +13,13 @@ const ServicoSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  semTipo: {
+    type: Boolean,
+    default: false,
+  },
   tipoServico: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "TipoServico",
-    required: true,
   },
   valorPersonalizado: {
     type: Number,
@@ -27,8 +31,8 @@ const ServicoSchema = new mongoose.Schema({
   },
   participantes: [
     {
-      type: String,
-      enum: ["Gabriel", "Samuel", "Davi"],
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
   ],
   pago: {
@@ -45,10 +49,15 @@ const ServicoSchema = new mongoose.Schema({
   },
 });
 
+// Middleware simples para atualizar updatedAt
 ServicoSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
   next();
 });
 
-export default mongoose.models.Servico ||
-  mongoose.model("Servico", ServicoSchema);
+// Forçar recriação do modelo para evitar problemas de cache
+if (mongoose.models.Servico) {
+  delete mongoose.models.Servico;
+}
+
+export default mongoose.model("Servico", ServicoSchema);

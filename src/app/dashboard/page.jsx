@@ -21,28 +21,6 @@ import {
   PlusIcon,
 } from "@heroicons/react/24/outline";
 
-function getMonthKey(dateStr) {
-  const d = new Date(dateStr);
-  let year = d.getFullYear();
-  let month = d.getMonth() + 1;
-  let day = d.getDate();
-  // Virada do mês no dia 17
-  if (day < 17) {
-    if (month === 1) {
-      month = 12;
-      year -= 1;
-    } else {
-      month -= 1;
-    }
-  }
-  return `${year}-${month.toString().padStart(2, "0")}`;
-}
-
-function getDayKey(dateStr) {
-  const d = new Date(dateStr);
-  return d.toISOString().slice(0, 10);
-}
-
 export default function DashboardPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -50,6 +28,7 @@ export default function DashboardPage() {
   const [servicos, setServicos] = useState([]);
   const [despesas, setDespesas] = useState([]);
   const [compras, setCompras] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
   const [carteira, setCarteira] = useState(0);
   const [meses, setMeses] = useState([]);
   const [dadosServicosDia, setDadosServicosDia] = useState({});
@@ -63,6 +42,32 @@ export default function DashboardPage() {
   const [valorDistribuicao, setValorDistribuicao] = useState("");
   const [isCriandoDespesa, setIsCriandoDespesa] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [fiscalMonthStart, setFiscalMonthStart] = useState(17);
+  const [isUpdatingConfig, setIsUpdatingConfig] = useState(false);
+
+  // Função para obter o mês fiscal (configurável)
+  function getMonthKey(dateStr) {
+    const d = new Date(dateStr);
+    let year = d.getFullYear();
+    let month = d.getMonth() + 1;
+    let day = d.getDate();
+    // Mês fiscal configurável
+    if (day < fiscalMonthStart) {
+      if (month === 1) {
+        month = 12;
+        year -= 1;
+      } else {
+        month -= 1;
+      }
+    }
+    return `${year}-${month.toString().padStart(2, "0")}`;
+  }
+
+  // Função para obter a chave do dia
+  function getDayKey(dateStr) {
+    const d = new Date(dateStr);
+    return d.toISOString().slice(0, 10);
+  }
 
   useEffect(() => {
     if (!loading && !user) {
@@ -79,12 +84,21 @@ export default function DashboardPage() {
   async function loadDashboardData() {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/dashboard");
-      const { servicos, despesas, compras } = await response.json();
+      const [dashboardResponse, usuariosResponse, configResponse] = await Promise.all([
+        fetch("/api/dashboard"),
+        fetch("/api/user"),
+        fetch("/api/system-config")
+      ]);
+      
+      const { servicos, despesas, compras } = await dashboardResponse.json();
+      const usuariosData = await usuariosResponse.json();
+      const configData = await configResponse.json();
 
       setServicos(servicos || []);
       setDespesas(despesas || []);
       setCompras(compras || []);
+      setUsuarios(Array.isArray(usuariosData) ? usuariosData : []);
+      setFiscalMonthStart(configData.fiscalMonthStart || 17);
 
       // Agrupamento por mês e por dia
       const mesesSet = new Set();
@@ -137,11 +151,59 @@ export default function DashboardPage() {
     }
   }
 
+  // Função para atualizar configuração do mês fiscal
+  async function updateFiscalMonthConfig() {
+    if (isUpdatingConfig) return;
+    
+    setIsUpdatingConfig(true);
+    try {
+      const response = await fetch("/api/system-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: "fiscalMonthStart",
+          value: fiscalMonthStart,
+          userId: user?._id || "system",
+          userName: user?.name || "Sistema",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao atualizar configuração");
+      }
+
+      setToast({ 
+        show: true, 
+        message: "Configuração do mês fiscal atualizada com sucesso!", 
+        type: "success" 
+      });
+      
+      // Recarregar dados do dashboard para aplicar a nova configuração
+      await loadDashboardData();
+      
+      // Forçar recriação dos gráficos com a nova configuração
+      if (selectedMes && Object.keys(dadosServicosDia).length > 0) {
+        renderCharts();
+      }
+      
+    } catch (error) {
+      console.error("Erro ao atualizar configuração:", error);
+      setToast({ 
+        show: true, 
+        message: "Erro ao atualizar configuração do mês fiscal", 
+        type: "error" 
+      });
+    } finally {
+      setIsUpdatingConfig(false);
+      setTimeout(() => setToast({ show: false, message: "", type: "success" }), 4000);
+    }
+  }
+
   useEffect(() => {
     if (selectedMes && Object.keys(dadosServicosDia).length > 0) {
       renderCharts();
     }
-  }, [selectedMes, dadosServicosDia, dadosDespesasDia]);
+  }, [selectedMes, dadosServicosDia, dadosDespesasDia, fiscalMonthStart]);
 
   function renderCharts() {
     // Destruir gráficos existentes
@@ -153,10 +215,10 @@ export default function DashboardPage() {
     }
 
     // Filtrar dados do mês selecionado
-    const startDate = new Date(`${selectedMes}-17`);
+    const startDate = new Date(`${selectedMes}-${fiscalMonthStart}`);
     const endDate = new Date(startDate);
     endDate.setMonth(endDate.getMonth() + 1);
-    endDate.setDate(16);
+    endDate.setDate(fiscalMonthStart - 1);
 
     const dias = [];
     const valoresServicos = [];
@@ -316,10 +378,13 @@ export default function DashboardPage() {
       const nomes = Object.keys(valoresDistribuidos);
       const descricao = nomes
         .map(
-          (nome) =>
-            `${nome}: R$ ${valoresDistribuidos[nome].toLocaleString("pt-BR", {
+          (participanteId) => {
+            const usuario = usuarios.find(u => u._id === participanteId);
+            const nome = usuario ? usuario.name : participanteId;
+            return `${nome}: R$ ${valoresDistribuidos[participanteId].toLocaleString("pt-BR", {
               minimumFractionDigits: 2,
-            })}`,
+            })}`;
+          }
         )
         .join(" | ");
       const payload = {
@@ -526,7 +591,7 @@ export default function DashboardPage() {
                       >
                         {meses.map((mes) => (
                           <option key={mes} value={mes}>
-                            {new Date(`${mes}-17`).toLocaleDateString("pt-BR", {
+                            {new Date(`${mes}-${fiscalMonthStart}`).toLocaleDateString("pt-BR", {
                               year: "numeric",
                               month: "long",
                             })}
@@ -684,8 +749,11 @@ export default function DashboardPage() {
                 </div>
                 <div className="space-y-4">
                   {(() => {
-                    const nomes = ["Gabriel", "Davi", "Samuel"];
-                    const valoresParticipantes = { Gabriel: 0, Davi: 0, Samuel: 0 };
+                    const valoresParticipantes = {};
+                    usuarios.forEach(usuario => {
+                      valoresParticipantes[usuario._id] = 0;
+                    });
+                    
                     servicosDoMes.forEach((s) => {
                       const participantes = Array.isArray(s.participantes)
                         ? s.participantes
@@ -698,13 +766,15 @@ export default function DashboardPage() {
                             : 0;
                         const valorPorParticipante =
                           valorServico / participantes.length;
-                        participantes.forEach((nome) => {
-                          if (nomes.includes(nome)) {
-                            valoresParticipantes[nome] += valorPorParticipante;
+                        participantes.forEach((participante) => {
+                          const participanteId = typeof participante === 'object' ? participante._id : participante;
+                          if (valoresParticipantes.hasOwnProperty(participanteId)) {
+                            valoresParticipantes[participanteId] += valorPorParticipante;
                           }
                         });
                       }
                     });
+                    
                     const somaValores = Object.values(valoresParticipantes).reduce((acc, v) => acc + v, 0);
                     // Calcula os valores distribuídos para o botão
                     let valorTotal = carteira;
@@ -712,41 +782,50 @@ export default function DashboardPage() {
                       valorTotal = Number(valorDistribuicao);
                     }
                     const valoresDistribuidos = {};
-                    nomes.forEach((nome) => {
-                      valoresDistribuidos[nome] =
+                    usuarios.forEach((usuario) => {
+                      valoresDistribuidos[usuario._id] =
                         somaValores > 0
-                          ? valorTotal * (valoresParticipantes[nome] / somaValores)
+                          ? valorTotal * (valoresParticipantes[usuario._id] / somaValores)
                           : 0;
                     });
+                    
                     // Renderização dos cards
-                    return nomes.map((nome, index) => {
-                      const valor = somaValores > 0 ? carteira * (valoresParticipantes[nome] / somaValores) : 0;
-                      const percentage = somaValores > 0 ? (valoresParticipantes[nome] / somaValores) * 100 : 0;
+                    return usuarios.map((usuario, index) => {
+                      const valor = somaValores > 0 ? carteira * (valoresParticipantes[usuario._id] / somaValores) : 0;
+                      const percentage = somaValores > 0 ? (valoresParticipantes[usuario._id] / somaValores) * 100 : 0;
                       const count = servicosDoMes.filter(
-                        (s) => Array.isArray(s.participantes) && s.participantes.includes(nome)
+                        (s) => Array.isArray(s.participantes) && s.participantes.some(p => 
+                          (typeof p === 'object' ? p._id : p) === usuario._id
+                        )
                       ).length;
                       const valorPersonalizadoDistribuicao =
                         somaValores > 0 && valorDistribuicao
-                          ? Number(valorDistribuicao) * (valoresParticipantes[nome] / somaValores)
+                          ? Number(valorDistribuicao) * (valoresParticipantes[usuario._id] / somaValores)
                           : 0;
                       const colors = [
                         "bg-blue-100 text-blue-600",
                         "bg-green-100 text-green-600",
                         "bg-purple-100 text-purple-600",
+                        "bg-orange-100 text-orange-600",
+                        "bg-pink-100 text-pink-600",
+                        "bg-indigo-100 text-indigo-600",
                       ];
                       const barColor = [
                         "bg-blue-500",
                         "bg-green-500",
                         "bg-purple-500",
+                        "bg-orange-500",
+                        "bg-pink-500",
+                        "bg-indigo-500",
                       ];
                       return (
-                        <div key={nome} className="flex items-center gap-4 py-2">
-                          <div className={`w-10 h-10 ${colors[index].split(' ')[0]} rounded-lg flex items-center justify-center`}>
-                            <UsersIcon className={`w-5 h-5 ${colors[index].split(' ')[1]}`} />
+                        <div key={usuario._id} className="flex items-center gap-4 py-2">
+                          <div className={`w-10 h-10 ${colors[index % colors.length].split(' ')[0]} rounded-lg flex items-center justify-center`}>
+                            <UsersIcon className={`w-5 h-5 ${colors[index % colors.length].split(' ')[1]}`} />
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="font-medium text-gray-900">{nome}</span>
+                              <span className="font-medium text-gray-900">{usuario.name}</span>
                               <span className="text-xs text-gray-500">{count} serviços</span>
                               <span className="text-xs font-semibold text-gray-700">
                                 R$ {valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
@@ -763,7 +842,7 @@ export default function DashboardPage() {
                             )}
                             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                               <div
-                                className={`h-2 ${barColor[index]} transition-all duration-500`}
+                                className={`h-2 ${barColor[index % barColor.length]} transition-all duration-500`}
                                 style={{ width: `${percentage}%` }}
                               ></div>
                             </div>
@@ -782,8 +861,11 @@ export default function DashboardPage() {
                     className="inline-flex items-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60"
                     onClick={() => {
                       // Recalcula os valores distribuídos para o envio correto
-                      const nomes = ["Gabriel", "Davi", "Samuel"];
-                      const valoresParticipantes = { Gabriel: 0, Davi: 0, Samuel: 0 };
+                      const valoresParticipantes = {};
+                      usuarios.forEach(usuario => {
+                        valoresParticipantes[usuario._id] = 0;
+                      });
+                      
                       servicosDoMes.forEach((s) => {
                         const participantes = Array.isArray(s.participantes)
                           ? s.participantes
@@ -796,9 +878,10 @@ export default function DashboardPage() {
                               : 0;
                           const valorPorParticipante =
                             valorServico / participantes.length;
-                          participantes.forEach((nome) => {
-                            if (nomes.includes(nome)) {
-                              valoresParticipantes[nome] += valorPorParticipante;
+                          participantes.forEach((participante) => {
+                            const participanteId = typeof participante === 'object' ? participante._id : participante;
+                            if (valoresParticipantes.hasOwnProperty(participanteId)) {
+                              valoresParticipantes[participanteId] += valorPorParticipante;
                             }
                           });
                         }
@@ -809,10 +892,10 @@ export default function DashboardPage() {
                         valorTotal = Number(valorDistribuicao);
                       }
                       const valoresDistribuidos = {};
-                      nomes.forEach((nome) => {
-                        valoresDistribuidos[nome] =
+                      usuarios.forEach((usuario) => {
+                        valoresDistribuidos[usuario._id] =
                           somaValores > 0
-                            ? valorTotal * (valoresParticipantes[nome] / somaValores)
+                            ? valorTotal * (valoresParticipantes[usuario._id] / somaValores)
                             : 0;
                       });
                       criarDespesaRetirada(valoresDistribuidos, valorTotal);
@@ -922,6 +1005,65 @@ export default function DashboardPage() {
                       Nenhuma despesa neste período
                     </p>
                   )}
+                </div>
+              </div>
+
+              {/* Configurações do Sistema */}
+              <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      Configurações do Sistema
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Personalize as configurações do sistema
+                    </p>
+                  </div>
+                  <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                </div>
+                
+                <div className="space-y-6">
+                  {/* Configuração do Mês Fiscal */}
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <h4 className="font-medium text-gray-900">Dia de Início do Mês Fiscal</h4>
+                      <p className="text-sm text-gray-600">
+                        Define quando o mês fiscal começa. Atualmente: dia {fiscalMonthStart}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Ex: Se configurado para dia 15, o mês fiscal vai do dia 15 ao dia 14 do mês seguinte
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={fiscalMonthStart}
+                        onChange={(e) => setFiscalMonthStart(parseInt(e.target.value) || 1)}
+                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
+                      />
+                      <button
+                        onClick={updateFiscalMonthConfig}
+                        disabled={isUpdatingConfig}
+                        className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isUpdatingConfig ? (
+                          <span className="flex items-center">
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                            Salvando...
+                          </span>
+                        ) : (
+                          "Salvar"
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </>
