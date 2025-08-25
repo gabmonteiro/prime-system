@@ -1,6 +1,5 @@
 // src/models/User.js
 import mongoose from "mongoose";
-import "./role.js";
 
 const UserSchema = new mongoose.Schema({
   name: {
@@ -20,19 +19,11 @@ const UserSchema = new mongoose.Schema({
     required: [true, "Senha é obrigatória"],
     minlength: 6,
   },
-  isAdmin: {
-    type: Boolean,
-    default: false,
-  },
   role: {
     type: String,
-    enum: ["user", "admin"],
-    default: "user",
+    enum: ["admin", "gerente", "funcionario", "visualizador"],
+    default: "funcionario",
   },
-  roles: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Role",
-  }],
   isActive: {
     type: Boolean,
     default: true,
@@ -54,56 +45,71 @@ UserSchema.pre("save", function (next) {
 });
 
 // Método para verificar se o usuário tem uma permissão específica
-UserSchema.methods.hasPermission = async function(resource, action) {
+UserSchema.methods.hasPermission = function(resource, action) {
   // Admin sempre tem todas as permissões
-  if (this.isAdmin) {
+  if (this.role === "admin") {
     return true;
   }
 
-  // Carregar roles com permissões
-  await this.populate({
-    path: 'roles',
-    populate: {
-      path: 'permissions'
-    }
-  });
+  // Mapeamento de roles para permissões
+  const rolePermissions = {
+    gerente: [
+      "servicos:manage", "despesas:manage", "tipos-servicos:manage",
+      "lista-compras:manage", "dashboard:read", "configuracoes:read",
+      "usuarios:read", "usuarios:create", "usuarios:update"
+    ],
+    funcionario: [
+      "servicos:read", "servicos:create", "servicos:update",
+      "despesas:read", "despesas:create", "despesas:update",
+      "lista-compras:read", "lista-compras:create", "lista-compras:update",
+      "dashboard:read", "tipos-servicos:read"
+    ],
+    visualizador: [
+      "servicos:read", "despesas:read", "tipos-servicos:read",
+      "lista-compras:read", "dashboard:read"
+    ]
+  };
 
-  // Verificar se alguma role tem a permissão
-  for (const role of this.roles) {
-    for (const permission of role.permissions) {
-      if (permission.resource === resource && 
-          (permission.action === action || permission.action === 'manage')) {
-        return true;
-      }
-    }
-  }
-
-  return false;
+  const permissions = rolePermissions[this.role] || [];
+  
+  // Verificar permissão específica ou permissão de gerenciamento
+  return permissions.includes(`${resource}:${action}`) || 
+         permissions.includes(`${resource}:manage`);
 };
 
 // Método para obter todas as permissões do usuário
-UserSchema.methods.getAllPermissions = async function() {
-  if (this.isAdmin) {
+UserSchema.methods.getAllPermissions = function() {
+  if (this.role === "admin") {
     // Admin tem todas as permissões
-    const Permission = mongoose.model('Permission');
-    return await Permission.find({});
+    return [
+      "servicos:read", "servicos:create", "servicos:update", "servicos:delete", "servicos:manage",
+      "despesas:read", "despesas:create", "despesas:update", "despesas:delete", "despesas:manage",
+      "tipos-servicos:read", "tipos-servicos:create", "tipos-servicos:update", "tipos-servicos:delete", "tipos-servicos:manage",
+      "usuarios:read", "usuarios:create", "usuarios:update", "usuarios:delete", "usuarios:manage",
+      "lista-compras:read", "lista-compras:create", "lista-compras:update", "lista-compras:delete", "lista-compras:manage",
+      "dashboard:read", "auditoria:read", "configuracoes:read", "configuracoes:update", "configuracoes:manage"
+    ];
   }
 
-  await this.populate({
-    path: 'roles',
-    populate: {
-      path: 'permissions'
-    }
-  });
+  const rolePermissions = {
+    gerente: [
+      "servicos:manage", "despesas:manage", "tipos-servicos:manage",
+      "lista-compras:manage", "dashboard:read", "configuracoes:read",
+      "usuarios:read", "usuarios:create", "usuarios:update"
+    ],
+    funcionario: [
+      "servicos:read", "servicos:create", "servicos:update",
+      "despesas:read", "despesas:create", "despesas:update",
+      "lista-compras:read", "lista-compras:create", "lista-compras:update",
+      "dashboard:read", "tipos-servicos:read"
+    ],
+    visualizador: [
+      "servicos:read", "despesas:read", "tipos-servicos:read",
+      "lista-compras:read", "dashboard:read"
+    ]
+  };
 
-  const permissions = new Set();
-  this.roles.forEach(role => {
-    role.permissions.forEach(permission => {
-      permissions.add(permission._id.toString());
-    });
-  });
-
-  return Array.from(permissions);
+  return rolePermissions[this.role] || [];
 };
 
 // Evita re-compilação do modelo durante hot reload

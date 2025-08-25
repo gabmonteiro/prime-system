@@ -1,4 +1,4 @@
-import LoginService from "../../../services/loginService.js";
+import { UserService } from "../../../services/userService.js";
 import connectDB from "../../../libs/db.js";
 
 export async function POST(req) {
@@ -23,22 +23,26 @@ export async function POST(req) {
       );
     }
 
-    const user = await LoginService.authenticate(email.toLowerCase().trim(), password);
+    const authResult = await UserService.validateCredentials(email.toLowerCase().trim(), password);
     
-    if (!user) {
+    if (!authResult.isValid) {
       return new Response(
         JSON.stringify({ message: "Credenciais inválidas" }),
         { status: 401 },
       );
     }
 
+    const user = authResult.user;
+
     // Criar resposta com dados do usuário (sem senha)
     const userData = {
       _id: user._id,
       name: user.name,
       email: user.email,
-      isAdmin: user.isAdmin,
-      role: user.role
+      role: user.role,
+      isAdmin: user.role === "admin", // Compatibilidade com código existente
+      permissions: user.permissions,
+      permissionsList: user.permissionsList
     };
 
     // Define cookie de autenticação seguro

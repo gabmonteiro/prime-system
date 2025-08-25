@@ -27,7 +27,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 export default function AuditoriaPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, hasPermission } = useAuth();
   const router = useRouter();
 
   const [auditLogs, setAuditLogs] = useState([]);
@@ -54,16 +54,16 @@ export default function AuditoriaPage() {
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
-    } else if (!loading && user && !user.isAdmin) {
+    } else if (!loading && user && !hasPermission("auditoria", "read")) {
       router.push("/dashboard");
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, hasPermission]);
 
   useEffect(() => {
-    if (user && user.isAdmin) {
+    if (user && hasPermission("auditoria", "read")) {
       fetchData(currentPage, itemsPerPage);
     }
-  }, [user, currentPage, itemsPerPage, filters]);
+  }, [user, currentPage, itemsPerPage, filters, hasPermission]);
 
   // Show toast notification
   const showToast = (message, type = "success") => {
@@ -204,8 +204,8 @@ export default function AuditoriaPage() {
     return text.substring(0, maxLength) + "...";
   }
 
-  // Verificar se usuário é admin
-  if (!user || !user.isAdmin) {
+  // Verificar se usuário tem permissão
+  if (!user || !hasPermission("auditoria", "read")) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

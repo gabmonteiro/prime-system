@@ -1,15 +1,60 @@
-import { 
-  getConfig, 
-  setConfig, 
+import {
+  getConfig,
+  setConfig,
   getAllConfigs,
-  initializeDefaultConfigs 
-} from "../../../services/systemConfigService";
-import connectDB from "../../../libs/db";
-import { AuditService } from "../../../services/auditService";
+  initializeDefaultConfigs
+} from "../../../services/systemConfigService.js";
+import connectDB from "../../../libs/db.js";
+import { AuditService } from "../../../services/auditService.js";
+import { checkPermission } from "../../../services/permissionService.js";
+import { UserService } from "../../../services/userService.js";
+
+// Função para obter usuário atual baseado no cookie de autenticação
+async function getCurrentUser(request) {
+  try {
+    const cookieHeader = request.headers.get("cookie");
+    
+    if (!cookieHeader) {
+      return null;
+    }
+    
+    // Extrair o userId do cookie 'user'
+    const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+      const [key, value] = cookie.trim().split('=');
+      acc[key] = value;
+      return acc;
+    }, {});
+    
+    const userId = cookies.user;
+    
+    if (!userId) {
+      return null;
+    }
+    
+    // Buscar usuário no banco
+    const user = await UserService.getUserById(userId);
+    return user;
+  } catch (error) {
+    console.error("Erro ao obter usuário atual:", error);
+    return null;
+  }
+}
 
 export async function GET(request) {
   try {
     await connectDB();
+    
+    // Verificar autenticação
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
+    }
+    
+    // Verificar permissão de leitura
+    if (!checkPermission(user, "configuracoes", "read")) {
+      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
+    }
+    
     const { searchParams } = new URL(request.url);
     const key = searchParams.get("key");
     
@@ -30,7 +75,19 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     await connectDB();
-    const { key, value, description, userId, userName } = await request.json();
+    
+    // Verificar autenticação
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
+    }
+    
+    // Verificar permissão de atualização
+    if (!checkPermission(user, "configuracoes", "update")) {
+      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
+    }
+    
+    const { key, value, description } = await request.json();
     
     if (!key || value === undefined) {
       return Response.json({ 
@@ -48,17 +105,22 @@ export async function POST(request) {
       }
     }
     
+    // Buscar dados anteriores para auditoria
+    const previousValue = await getConfig(key);
+    
     const config = await setConfig(key, value, description);
     
     // Log de auditoria
     try {
       await AuditService.createLog({
-        userId: userId || "system",
-        userName: userName || "Sistema",
+        userId: user._id,
+        userName: user.name,
         action: "UPDATE",
         model: "SystemConfig",
         documentId: config._id,
-        newData: config,
+        previousData: { key, value: previousValue },
+        newData: { key, value: config.value },
+        changedFields: previousValue !== config.value ? ["value"] : [],
         ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "N/A",
         userAgent: request.headers.get("user-agent") || "N/A",
         metadata: { operation: "update_system_config", key, value },
@@ -120,11 +182,22 @@ export async function PUT(request) {
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
-
 // Endpoint para inicializar configurações padrão
 export async function PATCH(request) {
   try {
     await connectDB();
+    
+    // Verificar autenticação
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
+    }
+    
+    // Verificar permissão de gerenciamento
+    if (!checkPermission(user, "configuracoes", "manage")) {
+      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
+    }
+    
     const { action } = await request.json();
     
     if (action === "initialize") {
@@ -138,3 +211,4 @@ export async function PATCH(request) {
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+

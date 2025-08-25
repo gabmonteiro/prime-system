@@ -1,50 +1,75 @@
-import { AuditService } from "../../../services/auditService";
-import connectDB from "../../../libs/db";
+import { AuditService } from "../../../services/auditService.js";
+import connectDB from "../../../libs/db.js";
+import { checkPermission } from "../../../services/permissionService.js";
+import { UserService } from "../../../services/userService.js";
+
+// Função para obter usuário atual baseado no cookie de autenticação
+async function getCurrentUser(request) {
+  try {
+    const cookieHeader = request.headers.get("cookie");
+    
+    if (!cookieHeader) {
+      return null;
+    }
+    
+    // Extrair o userId do cookie 'user'
+    const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+      const [key, value] = cookie.trim().split('=');
+      acc[key] = value;
+      return acc;
+    }, {});
+    
+    const userId = cookies.user;
+    
+    if (!userId) {
+      return null;
+    }
+    
+    // Buscar usuário no banco
+    const user = await UserService.getUserById(userId);
+    return user;
+  } catch (error) {
+    console.error("Erro ao obter usuário atual:", error);
+    return null;
+  }
+}
 
 export async function GET(request) {
   try {
     await connectDB();
+    
+    // Verificar autenticação
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
+    }
+    
+    // Verificar permissão de leitura
+    if (!checkPermission(user, "auditoria", "read")) {
+      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
+    }
+    
     const { searchParams } = new URL(request.url);
-    
-    // Verificar se é uma busca por ID específico
-    const id = searchParams.get("id");
-    if (id) {
-      const auditLog = await AuditService.getAuditLogById(id);
-      if (!auditLog) return Response.json({ error: "Not found" }, { status: 404 });
-      return Response.json(auditLog);
-    }
-    
-    // Verificar se é uma busca por documento específico
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "50");
     const model = searchParams.get("model");
-    const documentId = searchParams.get("documentId");
-    if (model && documentId) {
-      const auditLogs = await AuditService.getAuditLogsByDocument(model, documentId);
-      return Response.json(auditLogs);
-    }
-    
-    // Verificar se é uma busca por usuário específico
+    const action = searchParams.get("action");
     const userId = searchParams.get("userId");
-    if (userId) {
-      const page = parseInt(searchParams.get("page") || "1", 10);
-      const limit = parseInt(searchParams.get("limit") || "20", 10);
-      const result = await AuditService.getAuditLogsByUser(userId, page, limit);
-      return Response.json(result);
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+    
+    const filters = {};
+    if (model) filters.model = model;
+    if (action) filters.action = action;
+    if (userId) filters.userId = userId;
+    if (startDate || endDate) {
+      filters.createdAt = {};
+      if (startDate) filters.createdAt.$gte = new Date(startDate);
+      if (endDate) filters.createdAt.$lte = new Date(endDate);
     }
     
-    // Busca geral com filtros e paginação
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "20", 10);
-    
-    // Construir filtros
-    const filters = {};
-    if (searchParams.get("action")) filters.action = searchParams.get("action");
-    if (searchParams.get("model")) filters.model = searchParams.get("model");
-    if (searchParams.get("status")) filters.status = searchParams.get("status");
-    if (searchParams.get("startDate")) filters.startDate = searchParams.get("startDate");
-    if (searchParams.get("endDate")) filters.endDate = searchParams.get("endDate");
-    
-    const result = await AuditService.getAuditLogs(filters, page, limit);
-    return Response.json(result);
+    const logs = await AuditService.getAuditLogs(filters, page, limit);
+    return Response.json(logs);
   } catch (error) {
     console.error("Error in GET /api/audit:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
@@ -54,35 +79,36 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     await connectDB();
-    const data = await request.json();
     
-    // Teste simples para verificar se o modelo está funcionando
-    console.log("POST /api/audit - Dados recebidos:", data);
-    
-    // Teste básico de criação do modelo
-    try {
-      console.log("Testando criação do modelo AuditLog...");
-      
-      // Apenas admins podem criar logs de auditoria manualmente
-      // Esta rota é principalmente para testes ou logs externos
-      const auditLog = await AuditService.createLog(data);
-      
-      console.log("Log de auditoria criado:", auditLog);
-      
-      if (auditLog) {
-        return Response.json(auditLog, { status: 201 });
-      } else {
-        return Response.json({ error: "Falha ao criar log de auditoria" }, { status: 500 });
-      }
-      
-    } catch (auditError) {
-      console.error("Erro detalhado na criação do log:", auditError);
-      return Response.json({ 
-        error: "Erro ao criar log de auditoria", 
-        details: auditError.message 
-      }, { status: 500 });
+    // Verificar autenticação
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
     }
     
+    // Verificar permissão de criação
+    if (!checkPermission(user, "auditoria", "create")) {
+      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
+    }
+    
+    const logData = await request.json();
+    
+    // Validar campos obrigatórios
+    if (!logData.action || !logData.model || !logData.documentId) {
+      return Response.json({ 
+        error: "Campos obrigatórios: action, model, documentId" 
+      }, { status: 400 });
+    }
+    
+    const log = await AuditService.createLog({
+      ...logData,
+      userId: user._id,
+      userName: user.name,
+      ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "N/A",
+      userAgent: request.headers.get("user-agent") || "N/A",
+    });
+    
+    return Response.json(log, { status: 201 });
   } catch (error) {
     console.error("Error in POST /api/audit:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });

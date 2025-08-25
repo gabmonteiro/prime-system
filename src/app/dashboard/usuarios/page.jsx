@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../../context/authContext";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "../DashboardLayout";
@@ -9,13 +9,20 @@ import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
+  EyeIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  XMarkIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  MagnifyingGlassIcon,
   UserIcon,
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 
 export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -24,7 +31,7 @@ export default function UsuariosPage() {
     name: "",
     email: "",
     password: "",
-    isAdmin: false,
+    role: "funcionario",
   });
   const [toastState, setToastState] = useState({
     show: false,
@@ -32,7 +39,7 @@ export default function UsuariosPage() {
     type: "success",
   });
 
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const router = useRouter();
 
   // Show toast notification
@@ -48,14 +55,14 @@ export default function UsuariosPage() {
       router.push("/login");
       return;
     }
-    if (user && !user.isAdmin) {
+    if (user && !hasPermission("usuarios", "read")) {
       router.push("/dashboard");
       return;
     }
-    if (user && user.isAdmin) {
+    if (user && hasPermission("usuarios", "read")) {
       fetchData();
     }
-  }, [user, router]);
+  }, [user, router, hasPermission]);
 
   async function fetchData() {
     try {
@@ -66,6 +73,15 @@ export default function UsuariosPage() {
       if (response.ok) {
         // Aceita tanto array direto quanto objeto { users: [...] }
         const usersArray = Array.isArray(data) ? data : (data.users || []);
+        console.log('🔍 Debug fetchData:', { 
+          responseOk: response.ok, 
+          dataType: typeof data, 
+          isArray: Array.isArray(data),
+          usersArrayLength: usersArray.length,
+          firstUser: usersArray[0],
+          firstUserId: usersArray[0]?._id
+        });
+        
         // Os usuários já vêm ordenados da API por data de criação (mais recente primeiro)
         setUsuarios(usersArray);
       } else {
@@ -138,7 +154,7 @@ export default function UsuariosPage() {
       name: usuario.name || "",
       email: usuario.email || "",
       password: "", // Não carregar senha existente
-      isAdmin: usuario.isAdmin || false,
+      role: usuario.role || "funcionario",
     });
     setEditId(usuario._id);
     setModalOpen(true);
@@ -173,14 +189,14 @@ export default function UsuariosPage() {
   }
 
   function openModal() {
-    setForm({ name: "", email: "", password: "", isAdmin: false });
+    setForm({ name: "", email: "", password: "", role: "funcionario" });
     setEditId(null);
     setModalOpen(true);
   }
 
   function closeModal() {
     setModalOpen(false);
-    setForm({ name: "", email: "", password: "", isAdmin: false });
+    setForm({ name: "", email: "", password: "", role: "funcionario" });
     setEditId(null);
   }
 
@@ -195,7 +211,7 @@ export default function UsuariosPage() {
     setCurrentPage(page);
   };
 
-  if (!user?.isAdmin) {
+  if (!user || !hasPermission("usuarios", "read")) {
     return (
       <DashboardLayout>
         <div className="min-h-screen flex items-center justify-center">
@@ -306,7 +322,7 @@ export default function UsuariosPage() {
                               </p>
                             </div>
                           </div>
-                          {usuario.isAdmin && (
+                          {usuario.role === "admin" && (
                             <span className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
                               <ShieldCheckIcon className="h-3 w-3 mr-1" />
                               Admin
@@ -376,7 +392,7 @@ export default function UsuariosPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            {usuario.isAdmin ? (
+                            {usuario.role === "admin" ? (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                                 <ShieldCheckIcon className="h-3 w-3 mr-1" />
                                 Administrador
@@ -384,7 +400,9 @@ export default function UsuariosPage() {
                             ) : (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                 <UserIcon className="h-3 w-3 mr-1" />
-                                Usuário
+                                {usuario.role === "gerente" ? "Gerente" : 
+                                 usuario.role === "funcionario" ? "Funcionário" : 
+                                 usuario.role === "visualizador" ? "Visualizador" : "Usuário"}
                               </span>
                             )}
                           </td>
@@ -499,20 +517,30 @@ export default function UsuariosPage() {
               </div>
 
               <div>
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    name="isAdmin"
-                    checked={form.isAdmin}
-                    onChange={handleInputChange}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <span className="text-sm font-medium text-gray-700">
-                    Administrador
-                  </span>
+                <label
+                  htmlFor="role"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Role
                 </label>
+                <select
+                  id="role"
+                  name="role"
+                  value={form.role}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="funcionario">Funcionário</option>
+                  <option value="visualizador">Visualizador</option>
+                  <option value="gerente">Gerente</option>
+                  <option value="admin">Administrador</option>
+                </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Administradores têm acesso completo ao sistema
+                  {form.role === "admin" && "Administradores têm acesso completo ao sistema"}
+                  {form.role === "gerente" && "Gerentes têm acesso amplo para gerenciar operações"}
+                  {form.role === "funcionario" && "Funcionários têm acesso básico para operações do dia a dia"}
+                  {form.role === "visualizador" && "Visualizadores têm acesso apenas para consultas"}
                 </p>
               </div>
             </div>

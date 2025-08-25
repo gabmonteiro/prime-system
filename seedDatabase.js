@@ -1,127 +1,115 @@
 // Script para seed do banco de dados
 
-import readline from "readline";
-import "dotenv/config";
-import mongoose from "mongoose";
-import { UserService } from "./src/services/userService.js";
+import connectDB from "./src/libs/db.js";
+import Role from "./src/models/role.js";
+import User from "./src/models/user.js";
+import bcrypt from "bcryptjs";
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-
-async function connectDB() {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    console.error("MONGODB_URI não definida no .env");
-    process.exit(1);
+// Roles padrão do sistema
+const DEFAULT_ROLES = [
+  {
+    name: "admin",
+    description: "Administrador com acesso completo ao sistema",
+    isSystem: true,
+    permissions: [
+      "servicos:read", "servicos:create", "servicos:update", "servicos:delete", "servicos:manage",
+      "despesas:read", "despesas:create", "despesas:update", "despesas:delete", "despesas:manage",
+      "tipos-servicos:read", "tipos-servicos:create", "tipos-servicos:update", "tipos-servicos:delete", "tipos-servicos:manage",
+      "usuarios:read", "usuarios:create", "usuarios:update", "usuarios:delete", "usuarios:manage",
+      "lista-compras:read", "lista-compras:create", "lista-compras:update", "lista-compras:delete", "lista-compras:manage",
+      "dashboard:read", "auditoria:read", "configuracoes:read", "configuracoes:update", "configuracoes:manage"
+    ]
+  },
+  {
+    name: "gerente",
+    description: "Gerente com acesso a relatórios e configurações básicas",
+    isSystem: true,
+    permissions: [
+      "servicos:manage", "despesas:manage", "tipos-servicos:manage",
+      "lista-compras:manage", "dashboard:read", "configuracoes:read",
+      "usuarios:read", "usuarios:create", "usuarios:update"
+    ]
+  },
+  {
+    name: "funcionario",
+    description: "Funcionário com acesso básico para operações do dia a dia",
+    isSystem: true,
+    permissions: [
+      "servicos:read", "servicos:create", "servicos:update",
+      "despesas:read", "despesas:create", "despesas:update",
+      "lista-compras:read", "lista-compras:create", "lista-compras:update",
+      "dashboard:read", "tipos-servicos:read"
+    ]
+  },
+  {
+    name: "visualizador",
+    description: "Usuário com acesso apenas para visualização de dados",
+    isSystem: true,
+    permissions: [
+      "servicos:read", "despesas:read", "tipos-servicos:read",
+      "lista-compras:read", "dashboard:read"
+    ]
   }
-  await mongoose.connect(uri);
-}
+];
 
-async function seedServicosEDespesas() {
-  // Models
-  const Servico = (await import("./src/models/servico.js")).default;
-  const TipoServico = (await import("./src/models/tipoServico.js")).default;
-  const Despesa = (await import("./src/models/despesa.js")).default;
+// Usuário admin padrão
+const DEFAULT_ADMIN = {
+  name: "Administrador",
+  email: "admin@prime.com",
+  password: "admin123",
+  role: "admin",
+  isActive: true
+};
 
-  // Seed tipos de serviço
-  const tipos = [
-    { nome: "Troca de óleo", valor: 120 },
-    { nome: "Revisão", valor: 250 },
-    { nome: "Alinhamento", valor: 80 },
-    { nome: "Lavagem", valor: 60 },
-    { nome: "Funilaria", valor: 400 },
-  ];
-  const tiposDocs = await TipoServico.insertMany(tipos);
-
-  // Seed serviços aleatórios
-  const participantes = ["Gabriel", "Davi", "Samuel"];
-  const clientes = ["João", "Maria", "Pedro", "Ana", "Lucas", "Carla"];
-  const carros = ["Civic", "Corolla", "Onix", "HB20", "Gol", "Fiesta"];
-  const servicosSeed = [];
-  for (let i = 0; i < 25; i++) {
-    const tipo = tiposDocs[Math.floor(Math.random() * tiposDocs.length)];
-    const data = new Date();
-    data.setMonth(data.getMonth() - Math.floor(Math.random() * 3));
-    data.setDate(17 + Math.floor(Math.random() * 10));
-    servicosSeed.push({
-      cliente: clientes[Math.floor(Math.random() * clientes.length)],
-      nomeCarro: carros[Math.floor(Math.random() * carros.length)],
-      tipoServico: tipo._id,
-      data,
-      participantes: participantes.filter(() => Math.random() > 0.5),
-    });
-  }
-  await Servico.insertMany(servicosSeed);
-  console.log("25 serviços criados");
-
-  // Seed despesas aleatórias
-  const tiposDespesa = ["compra", "gasto"];
-  const despesasSeed = [];
-  for (let i = 0; i < 25; i++) {
-    const data = new Date();
-    data.setMonth(data.getMonth() - Math.floor(Math.random() * 3));
-    data.setDate(17 + Math.floor(Math.random() * 10));
-    despesasSeed.push({
-      nome: `Despesa ${i + 1}`,
-      valor: Math.floor(Math.random() * 400) + 50,
-      tipo: tiposDespesa[Math.floor(Math.random() * tiposDespesa.length)],
-      data,
-    });
-  }
-  await Despesa.insertMany(despesasSeed);
-  console.log("25 despesas criadas");
-}
-
-async function criarUsuarioAdmin() {
+async function seedDatabase() {
   try {
-    const userExists = await UserService.getUserByEmail("admin@gmail.com");
-    const userData = {
-      email: "admin@gmail.com",
-      password: "admin123",
-      name: "Administrador",
-      isAdmin: true,
-    };
-    if (userExists) {
-      await UserService.updateUser(userExists._id, userData);
-      console.log("Usuário admin atualizado");
-    } else {
-      await UserService.createUser(userData);
-      console.log("Usuário admin criado");
+    console.log("🌱 Iniciando seed do banco de dados...");
+    
+    await connectDB();
+    
+    // Criar roles padrão
+    console.log("📋 Criando roles padrão...");
+    for (const roleData of DEFAULT_ROLES) {
+      let role = await Role.findOne({ name: roleData.name });
+      if (!role) {
+        role = await Role.create(roleData);
+        console.log(`✅ Role criada: ${role.name}`);
+      } else {
+        console.log(`ℹ️  Role já existe: ${role.name}`);
+      }
     }
-  } catch (err) {
-    console.error("Erro ao criar usuário admin:", err);
+    
+    // Criar usuário admin padrão
+    console.log("👤 Criando usuário administrador padrão...");
+    let adminUser = await User.findOne({ email: DEFAULT_ADMIN.email });
+    if (!adminUser) {
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(DEFAULT_ADMIN.password, saltRounds);
+      
+      adminUser = await User.create({
+        ...DEFAULT_ADMIN,
+        password: hashedPassword
+      });
+      console.log(`✅ Usuário admin criado: ${adminUser.email}`);
+      console.log(`🔑 Senha padrão: ${DEFAULT_ADMIN.password}`);
+    } else {
+      console.log(`ℹ️  Usuário admin já existe: ${adminUser.email}`);
+    }
+    
+    console.log("🎉 Seed do banco de dados concluído com sucesso!");
+    console.log("📝 Credenciais do admin:");
+    console.log(`   Email: ${DEFAULT_ADMIN.email}`);
+    console.log(`   Senha: ${DEFAULT_ADMIN.password}`);
+    
+  } catch (error) {
+    console.error("❌ Erro durante o seed:", error);
+    process.exit(1);
+  } finally {
+    process.exit(0);
   }
 }
 
-async function mainMenu() {
-  console.log("\n=== Chatbot Seed Database ===");
-  console.log("Escolha uma opção:");
-  console.log("1 - Criar usuário admin");
-  console.log("2 - Inserir serviços e despesas");
-  console.log("0 - Sair");
-  rl.question("Digite o número da opção desejada: ", async (answer) => {
-    await connectDB();
-    switch (answer.trim()) {
-      case "1":
-        await criarUsuarioAdmin();
-        break;
-      case "2":
-        await seedServicosEDespesas();
-        break;
-      case "0":
-        console.log("Saindo...");
-        await mongoose.disconnect();
-        rl.close();
-        process.exit(0);
-        return;
-      default:
-        console.log("Opção inválida!");
-    }
-    await mongoose.disconnect();
-    mainMenu();
-  });
+// Executar se chamado diretamente
+if (import.meta.url === `file://${process.argv[1]}`) {
+  seedDatabase();
 }
-
-mainMenu();

@@ -1,5 +1,5 @@
-import connectDB from "../../../../libs/db";
-import User from "../../../../models/user";
+import connectDB from "../../../../libs/db.js";
+import { UserService } from "../../../../services/userService.js";
 
 export async function POST(request) {
   try {
@@ -15,7 +15,7 @@ export async function POST(request) {
     }
 
     // Verificar se o usuário ainda existe e está ativo
-    const user = await User.findById(userId);
+    const user = await UserService.getUserById(userId);
     
     if (!user || user.email !== email) {
       return Response.json(
@@ -30,7 +30,10 @@ export async function POST(request) {
         _id: user._id,
         name: user.name,
         email: user.email,
-        isAdmin: user.isAdmin
+        role: user.role,
+        isAdmin: user.role === "admin", // Compatibilidade com código existente
+        permissions: user.permissions,
+        permissionsList: user.permissionsList
       }
     });
 

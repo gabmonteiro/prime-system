@@ -1,26 +1,46 @@
 import Servico from "../models/servico";
 
+// Função auxiliar para corrigir dados corrompidos
+function corrigirParticipantes(servico) {
+  if (!servico.participantes || !Array.isArray(servico.participantes)) {
+    return { ...servico, participantes: [] };
+  }
+  
+  const participantesCorrigidos = servico.participantes.filter(p => 
+    p && typeof p === 'object' && p._id && p.name
+  );
+  
+  return { ...servico, participantes: participantesCorrigidos };
+}
+
 export async function createServico(data) {
   return await Servico.create(data);
 }
 
 export async function getServicos() {
-  return await Servico.find()
+  const servicos = await Servico.find()
     .populate("tipoServico")
     .populate("participantes", "name email")
     .sort({ data: -1, createdAt: -1 }); // Mesma ordenação: data do serviço, depois data de criação
+  
+  // Corrigir dados corrompidos
+  return servicos.map(corrigirParticipantes);
 }
 
 export async function getServicoById(id) {
-  return await Servico.findById(id)
+  const servico = await Servico.findById(id)
     .populate("tipoServico")
     .populate("participantes", "name email");
+  
+  return servico ? corrigirParticipantes(servico) : null;
 }
 
 export async function updateServico(id, data) {
-  return await Servico.findByIdAndUpdate(id, data, { new: true })
+  const servico = await Servico.findByIdAndUpdate(id, data, { new: true })
     .populate("tipoServico")
     .populate("participantes", "name email");
+  
+  return servico ? corrigirParticipantes(servico) : null;
 }
 
 export async function deleteServico(id) {
@@ -49,13 +69,16 @@ export async function getServicosPaginated(page = 1, limit = 10) {
       Servico.countDocuments(),
     ]);
     
+    // Corrigir dados corrompidos
+    const dataCorrigida = data.map(corrigirParticipantes);
+    
     // Calcular informações de paginação
     const totalPages = Math.ceil(total / limit);
     const hasNextPage = page < totalPages;
     const hasPrevPage = page > 1;
     
     return {
-      data,
+      data: dataCorrigida,
       pagination: {
         total,
         page,

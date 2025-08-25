@@ -22,7 +22,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, hasPermission } = useAuth();
   const router = useRouter();
 
   const [servicos, setServicos] = useState([]);
@@ -90,7 +90,7 @@ export default function DashboardPage() {
         fetch("/api/system-config")
       ]);
       
-      const { servicos, despesas, compras } = await dashboardResponse.json();
+      const { servicos, despesas, compras, carteira: carteiraBackend } = await dashboardResponse.json();
       const usuariosData = await usuariosResponse.json();
       const configData = await configResponse.json();
 
@@ -98,6 +98,25 @@ export default function DashboardPage() {
       setDespesas(despesas || []);
       setCompras(compras || []);
       setUsuarios(Array.isArray(usuariosData) ? usuariosData : []);
+      
+      // Usar o valor da carteira calculado pelo backend
+      if (carteiraBackend !== undefined) {
+        setCarteira(carteiraBackend);
+      } else {
+        // Fallback: calcular localmente se o backend não retornar
+        const totalServ = servicos.reduce(
+          (acc, s) =>
+            acc +
+            (s.valorPersonalizado
+              ? Number(s.valorPersonalizado)
+              : s.tipoServico?.valor
+                ? Number(s.tipoServico.valor)
+                : 0),
+          0,
+        );
+        const totalDesp = despesas.reduce((acc, d) => acc + (Number(d.valor) || 0), 0);
+        setCarteira(totalServ - totalDesp);
+      }
       setFiscalMonthStart(configData.fiscalMonthStart || 17);
 
       // Agrupamento por mês e por dia
@@ -131,19 +150,11 @@ export default function DashboardPage() {
       setDadosServicosDia(servDia);
       setDadosDespesasDia(despDia);
 
-      // Carteira: saldo acumulado de todos os meses
-      const totalServ = servicos.reduce(
-        (acc, s) =>
-          acc +
-          (s.valorPersonalizado
-            ? Number(s.valorPersonalizado)
-            : s.tipoServico?.valor
-              ? Number(s.tipoServico.valor)
-              : 0),
-        0,
-      );
-      const totalDesp = despesas.reduce((acc, d) => acc + (Number(d.valor) || 0), 0);
-      setCarteira(totalServ - totalDesp);
+      // Forçar recriação dos gráficos com a nova configuração
+      if (selectedMes && Object.keys(dadosServicosDia).length > 0) {
+        renderCharts();
+      }
+      
     } catch (error) {
       console.error("Erro ao carregar dados do dashboard:", error);
     } finally {
@@ -703,7 +714,7 @@ export default function DashboardPage() {
                     <span className="font-medium">Lista de Compras</span>
                   </button>
 
-                  {user?.isAdmin && (
+                  {hasPermission("usuarios", "read") && (
                     <button
                       onClick={() => router.push("/dashboard/usuarios")}
                       className="flex items-center justify-center p-4 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
@@ -750,30 +761,36 @@ export default function DashboardPage() {
                 <div className="space-y-4">
                   {(() => {
                     const valoresParticipantes = {};
-                    usuarios.forEach(usuario => {
-                      valoresParticipantes[usuario._id] = 0;
-                    });
+                    // Verificar se usuarios é um array válido
+                    if (Array.isArray(usuarios)) {
+                      usuarios.forEach(usuario => {
+                        valoresParticipantes[usuario._id] = 0;
+                      });
+                    }
                     
-                    servicosDoMes.forEach((s) => {
-                      const participantes = Array.isArray(s.participantes)
-                        ? s.participantes
-                        : [];
-                      if (participantes.length > 0) {
-                        const valorServico = s.valorPersonalizado
-                          ? Number(s.valorPersonalizado)
-                          : s.tipoServico?.valor
-                            ? Number(s.tipoServico.valor)
-                            : 0;
-                        const valorPorParticipante =
-                          valorServico / participantes.length;
-                        participantes.forEach((participante) => {
-                          const participanteId = typeof participante === 'object' ? participante._id : participante;
-                          if (valoresParticipantes.hasOwnProperty(participanteId)) {
-                            valoresParticipantes[participanteId] += valorPorParticipante;
-                          }
-                        });
-                      }
-                    });
+                    // Verificar se servicosDoMes é um array válido
+                    if (Array.isArray(servicosDoMes)) {
+                      servicosDoMes.forEach((s) => {
+                        const participantes = Array.isArray(s.participantes)
+                          ? s.participantes
+                          : [];
+                        if (participantes.length > 0) {
+                          const valorServico = s.valorPersonalizado
+                            ? Number(s.valorPersonalizado)
+                            : s.tipoServico?.valor
+                              ? Number(s.tipoServico.valor)
+                              : 0;
+                          const valorPorParticipante =
+                            valorServico / participantes.length;
+                          participantes.forEach((participante) => {
+                            const participanteId = typeof participante === 'object' ? participante._id : participante;
+                            if (valoresParticipantes.hasOwnProperty(participanteId)) {
+                              valoresParticipantes[participanteId] += valorPorParticipante;
+                            }
+                          });
+                        }
+                      });
+                    }
                     
                     const somaValores = Object.values(valoresParticipantes).reduce((acc, v) => acc + v, 0);
                     // Calcula os valores distribuídos para o botão
@@ -782,12 +799,15 @@ export default function DashboardPage() {
                       valorTotal = Number(valorDistribuicao);
                     }
                     const valoresDistribuidos = {};
-                    usuarios.forEach((usuario) => {
-                      valoresDistribuidos[usuario._id] =
-                        somaValores > 0
-                          ? valorTotal * (valoresParticipantes[usuario._id] / somaValores)
-                          : 0;
-                    });
+                    // Verificar se usuarios é um array válido antes de usar forEach
+                    if (Array.isArray(usuarios)) {
+                      usuarios.forEach((usuario) => {
+                        valoresDistribuidos[usuario._id] =
+                          somaValores > 0
+                            ? valorTotal * (valoresParticipantes[usuario._id] / somaValores)
+                            : 0;
+                      });
+                    }
                     
                     // Renderização dos cards
                     return usuarios.map((usuario, index) => {
@@ -862,42 +882,53 @@ export default function DashboardPage() {
                     onClick={() => {
                       // Recalcula os valores distribuídos para o envio correto
                       const valoresParticipantes = {};
-                      usuarios.forEach(usuario => {
-                        valoresParticipantes[usuario._id] = 0;
-                      });
+                      // Verificar se usuarios é um array válido
+                      if (Array.isArray(usuarios)) {
+                        usuarios.forEach(usuario => {
+                          valoresParticipantes[usuario._id] = 0;
+                        });
+                      }
                       
-                      servicosDoMes.forEach((s) => {
-                        const participantes = Array.isArray(s.participantes)
-                          ? s.participantes
-                          : [];
-                        if (participantes.length > 0) {
-                          const valorServico = s.valorPersonalizado
-                            ? Number(s.valorPersonalizado)
-                            : s.tipoServico?.valor
-                              ? Number(s.tipoServico.valor)
-                              : 0;
-                          const valorPorParticipante =
-                            valorServico / participantes.length;
-                          participantes.forEach((participante) => {
-                            const participanteId = typeof participante === 'object' ? participante._id : participante;
-                            if (valoresParticipantes.hasOwnProperty(participanteId)) {
-                              valoresParticipantes[participanteId] += valorPorParticipante;
-                            }
-                          });
-                        }
-                      });
+                      // Verificar se servicosDoMes é um array válido
+                      if (Array.isArray(servicosDoMes)) {
+                        servicosDoMes.forEach((s) => {
+                          const participantes = Array.isArray(s.participantes)
+                            ? s.participantes
+                            : [];
+                          if (participantes.length > 0) {
+                            const valorServico = s.valorPersonalizado
+                              ? Number(s.valorPersonalizado)
+                              : s.tipoServico?.valor
+                                ? Number(s.tipoServico.valor)
+                                : 0;
+                            const valorPorParticipante =
+                              valorServico / participantes.length;
+                            participantes.forEach((participante) => {
+                              const participanteId = typeof participante === 'object' ? participante._id : participante;
+                              if (valoresParticipantes.hasOwnProperty(participanteId)) {
+                                valoresParticipantes[participanteId] += valorPorParticipante;
+                              }
+                            });
+                          }
+                        });
+                      }
+                      
                       const somaValores = Object.values(valoresParticipantes).reduce((acc, v) => acc + v, 0);
                       let valorTotal = carteira;
                       if (valorDistribuicao && !isNaN(Number(valorDistribuicao))) {
                         valorTotal = Number(valorDistribuicao);
                       }
                       const valoresDistribuidos = {};
-                      usuarios.forEach((usuario) => {
-                        valoresDistribuidos[usuario._id] =
-                          somaValores > 0
-                            ? valorTotal * (valoresParticipantes[usuario._id] / somaValores)
-                            : 0;
-                      });
+                      
+                      // Verificar se usuarios é um array válido antes de usar forEach
+                      if (Array.isArray(usuarios)) {
+                        usuarios.forEach((usuario) => {
+                          valoresDistribuidos[usuario._id] =
+                            somaValores > 0
+                              ? valorTotal * (valoresParticipantes[usuario._id] / somaValores)
+                              : 0;
+                        });
+                      }
                       criarDespesaRetirada(valoresDistribuidos, valorTotal);
                     }}
                   >
@@ -914,47 +945,48 @@ export default function DashboardPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     Últimos Serviços
                   </h3>
-                  {servicosDoMes
-                    .slice(-5)
-                    .reverse()
-                    .map((servico, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-blue-100 rounded-full">
-                            <WrenchScrewdriverIcon className="h-4 w-4 text-blue-600" />
+                  {Array.isArray(servicosDoMes) && servicosDoMes.length > 0 ? (
+                    servicosDoMes
+                      .slice(-5)
+                      .reverse()
+                      .map((servico, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-blue-100 rounded-full">
+                              <WrenchScrewdriverIcon className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {servico.cliente}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {typeof servico.tipoServico === "object"
+                                  ? servico.tipoServico?.nome
+                                  : servico.tipoServico}
+                              </p>
+                            </div>
                           </div>
-                          <div>
+                          <div className="text-right">
                             <p className="font-medium text-gray-900">
-                              {servico.cliente}
+                              R${" "}
+                              {(
+                                servico.valorPersonalizado ||
+                                servico.tipoServico?.valor ||
+                                0
+                              ).toLocaleString("pt-BR", {
+                                minimumFractionDigits: 2,
+                              })}
                             </p>
-                            <p className="text-sm text-gray-500">
-                              {typeof servico.tipoServico === "object"
-                                ? servico.tipoServico?.nome
-                                : servico.tipoServico}
+                            <p className="text-xs text-gray-500">
+                              {new Date(servico.data).toLocaleDateString("pt-BR")}
                             </p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium text-gray-900">
-                            R${" "}
-                            {(
-                              servico.valorPersonalizado ||
-                              servico.tipoServico?.valor ||
-                              0
-                            ).toLocaleString("pt-BR", {
-                              minimumFractionDigits: 2,
-                            })}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(servico.data).toLocaleDateString("pt-BR")}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  {servicosDoMes.length === 0 && (
+                      ))
+                  ) : (
                     <p className="text-gray-500 text-center py-4">
                       Nenhum serviço neste período
                     </p>
@@ -966,41 +998,42 @@ export default function DashboardPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     Últimas Despesas
                   </h3>
-                  {despesasDoMes
-                    .slice(-5)
-                    .reverse()
-                    .map((despesa, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-red-100 rounded-full">
-                            <CurrencyDollarIcon className="h-4 w-4 text-red-600" />
+                  {Array.isArray(despesasDoMes) && despesasDoMes.length > 0 ? (
+                    despesasDoMes
+                      .slice(-5)
+                      .reverse()
+                      .map((despesa, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-red-100 rounded-full">
+                              <CurrencyDollarIcon className="h-4 w-4 text-red-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {despesa.nome}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {despesa.desc}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {despesa.nome}
+                          <div className="text-right">
+                            <p className="font-medium text-red-600">
+                              R${" "}
+                              {Number(despesa.valor).toLocaleString("pt-BR", {
+                                minimumFractionDigits: 2,
+                              })}
                             </p>
-                            <p className="text-sm text-gray-500">
-                              {despesa.desc}
+                            <p className="text-xs text-gray-500">
+                              {new Date(despesa.data).toLocaleDateString("pt-BR")}
                             </p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium text-red-600">
-                            R${" "}
-                            {Number(despesa.valor).toLocaleString("pt-BR", {
-                              minimumFractionDigits: 2,
-                            })}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(despesa.data).toLocaleDateString("pt-BR")}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  {despesasDoMes.length === 0 && (
+                      ))
+                  ) : (
                     <p className="text-gray-500 text-center py-4">
                       Nenhuma despesa neste período
                     </p>

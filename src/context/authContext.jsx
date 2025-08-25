@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 
 const AuthContext = createContext();
 
@@ -198,6 +198,24 @@ export function AuthProvider({ children }) {
     return () => clearInterval(interval);
   }, [user]);
 
+  // Função para verificar permissões
+  const hasPermission = useCallback((resource, action) => {
+    if (!user) return false;
+    
+    // Admin sempre tem todas as permissões
+    if (user.role === "admin") return true;
+    
+    // Verificar se tem permissão específica ou permissão de gerenciamento
+    return user.permissionsList?.includes(`${resource}:${action}`) || 
+           user.permissionsList?.includes(`${resource}:manage`);
+  }, [user]);
+
+  // Função para verificar se é admin
+  const isAdmin = user?.role === "admin";
+
+  // Função para verificar se tem role específica
+  const hasRole = useCallback((role) => user?.role === role, [user]);
+
   const value = {
     user,
     login,
@@ -206,7 +224,12 @@ export function AuthProvider({ children }) {
     error,
     refreshUser,
     isAuthenticated: !!user,
-    isAdmin: user?.isAdmin || false
+    isAdmin,
+    hasPermission,
+    hasRole,
+    role: user?.role || null,
+    permissions: user?.permissions || [],
+    permissionsList: user?.permissionsList || []
   };
 
   return (

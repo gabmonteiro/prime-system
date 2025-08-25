@@ -4,20 +4,57 @@ import {
   getServicoById,
   updateServico,
   deleteServico,
-  getServicosPaginated, // novo import
-} from "../../../services/servicoService";
-import connectDB from "../../../libs/db";
-import { AuditService } from "../../../services/auditService";
-import { requirePermission } from "../../../middlewares/permissionMiddleware.js";
+  getServicosPaginated
+} from "../../../services/servicoService.js";
+import connectDB from "../../../libs/db.js";
+import { AuditService } from "../../../services/auditService.js";
+import { checkPermission } from "../../../services/permissionService.js";
+import { UserService } from "../../../services/userService.js";
+
+// Função para obter usuário atual baseado no cookie de autenticação
+async function getCurrentUser(request) {
+  try {
+    const cookieHeader = request.headers.get("cookie");
+    
+    if (!cookieHeader) {
+      return null;
+    }
+    
+    // Extrair o userId do cookie 'user'
+    const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+      const [key, value] = cookie.trim().split('=');
+      acc[key] = value;
+      return acc;
+    }, {});
+    
+    const userId = cookies.user;
+    
+    if (!userId) {
+      return null;
+    }
+    
+    // Buscar usuário no banco
+    const user = await UserService.getUserById(userId);
+    return user;
+  } catch (error) {
+    console.error("Erro ao obter usuário atual:", error);
+    return null;
+  }
+}
 
 export async function GET(request) {
   try {
     await connectDB();
     
+    // Verificar autenticação
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
+    }
+    
     // Verificar permissão de leitura
-    const permissionCheck = await requirePermission("servicos", "read")(request);
-    if (permissionCheck.error) {
-      return Response.json({ error: permissionCheck.error }, { status: permissionCheck.status });
+    if (!checkPermission(user, "servicos", "read")) {
+      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
     }
     
     const { searchParams } = new URL(request.url);
@@ -25,7 +62,9 @@ export async function GET(request) {
     
     if (id) {
       const servico = await getServicoById(id);
-      if (!servico) return Response.json({ error: "Not found" }, { status: 404 });
+      if (!servico) {
+        return Response.json({ error: "Serviço não encontrado" }, { status: 404 });
+      }
       return Response.json(servico);
     }
     
@@ -45,47 +84,27 @@ export async function POST(request) {
   try {
     await connectDB();
     
+    // Verificar autenticação
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
+    }
+    
     // Verificar permissão de criação
-    const permissionCheck = await requirePermission("servicos", "create")(request);
-    if (permissionCheck.error) {
-      return Response.json({ error: permissionCheck.error }, { status: permissionCheck.status });
+    if (!checkPermission(user, "servicos", "create")) {
+      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
     }
     
     const data = await request.json();
-    
-    // Extrair informações do usuário do corpo da requisição
     const { userId, userName, ...servicoData } = data;
-    
-    console.log("POST /api/servico - Dados recebidos:", { userId, userName, servicoData });
-    
-    // Limpar campos baseado no campo semTipo
-    if (servicoData.semTipo) {
-      // Se sem tipo, remover tipoServico e garantir valorPersonalizado
-      delete servicoData.tipoServico;
-      if (!servicoData.valorPersonalizado) {
-        return Response.json({ 
-          error: "Valor personalizado é obrigatório quando não há tipo de serviço" 
-        }, { status: 400 });
-      }
-    } else {
-      // Se com tipo, garantir tipoServico
-      if (!servicoData.tipoServico) {
-        return Response.json({ 
-          error: "Tipo de serviço é obrigatório quando não é marcado como 'sem tipo'" 
-        }, { status: 400 });
-      }
-    }
     
     const servico = await createServico(servicoData);
     
-    console.log("Serviço criado com sucesso:", servico._id);
-    
-    // Log de auditoria para criação
+    // Log de auditoria
     try {
-      console.log("Tentando criar log de auditoria...");
-      const auditData = {
-        userId: userId || "system",
-        userName: userName || "Sistema",
+      await AuditService.createLog({
+        userId: user._id,
+        userName: user.name,
         action: "CREATE",
         model: "Servico",
         documentId: servico._id,
@@ -93,19 +112,12 @@ export async function POST(request) {
         ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "N/A",
         userAgent: request.headers.get("user-agent") || "N/A",
         metadata: { operation: "create_servico" },
-      };
-      
-      console.log("Dados de auditoria:", auditData);
-      
-      const auditResult = await AuditService.createLog(auditData);
-      console.log("Log de auditoria criado:", auditResult);
-      
+      });
     } catch (auditError) {
       console.error("Erro ao criar log de auditoria:", auditError);
-      // Não falhar a operação principal
     }
     
-    return Response.json(servico);
+    return Response.json(servico, { status: 201 });
   } catch (error) {
     console.error("Error in POST /api/servico:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
@@ -116,44 +128,36 @@ export async function PUT(request) {
   try {
     await connectDB();
     
+    // Verificar autenticação
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
+    }
+    
     // Verificar permissão de atualização
-    const permissionCheck = await requirePermission("servicos", "update")(request);
-    if (permissionCheck.error) {
-      return Response.json({ error: permissionCheck.error }, { status: permissionCheck.status });
+    if (!checkPermission(user, "servicos", "update")) {
+      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
     }
     
     const { id, userId, userName, ...data } = await request.json();
     
-    // Buscar dados anteriores para auditoria
-    const previousData = await getServicoById(id);
-    
-    // Limpar campos baseado no campo semTipo
-    if (data.semTipo) {
-      // Se sem tipo, remover tipoServico e garantir valorPersonalizado
-      delete data.tipoServico;
-      if (!data.valorPersonalizado) {
-        return Response.json({ 
-          error: "Valor personalizado é obrigatório quando não há tipo de serviço" 
-        }, { status: 400 });
-      }
-    } else {
-      // Se com tipo, garantir tipoServico
-      if (!data.tipoServico) {
-        return Response.json({ 
-          error: "Tipo de serviço é obrigatório quando não é marcado como 'sem tipo'" 
-        }, { status: 400 });
-      }
+    if (!id) {
+      return Response.json({ error: "ID do serviço é obrigatório" }, { status: 400 });
     }
     
+    const previousData = await getServicoById(id);
     const servico = await updateServico(id, data);
-    if (!servico) return Response.json({ error: "Not found" }, { status: 404 });
     
-    // Log de auditoria para atualização
+    if (!servico) {
+      return Response.json({ error: "Serviço não encontrado" }, { status: 404 });
+    }
+    
+    // Log de auditoria
     try {
       const changedFields = AuditService.getChangedFields(previousData, servico);
       await AuditService.createLog({
-        userId: userId || "system",
-        userName: userName || "Sistema",
+        userId: user._id,
+        userName: user.name,
         action: "UPDATE",
         model: "Servico",
         documentId: id,
@@ -166,7 +170,6 @@ export async function PUT(request) {
       });
     } catch (auditError) {
       console.error("Erro ao criar log de auditoria:", auditError);
-      // Não falhar a operação principal
     }
     
     return Response.json(servico);
@@ -180,25 +183,44 @@ export async function DELETE(request) {
   try {
     await connectDB();
     
-    // Verificar permissão de exclusão
-    const permissionCheck = await requirePermission("servicos", "delete")(request);
-    if (permissionCheck.error) {
-      return Response.json({ error: permissionCheck.error }, { status: permissionCheck.status });
+    // Verificar autenticação
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
     }
     
-    const { id, userId, userName } = await request.json();
+    // Verificar permissão de exclusão
+    if (!checkPermission(user, "servicos", "delete")) {
+      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
+    }
     
-    // Buscar dados antes da exclusão para auditoria
+    // Tentar obter ID do corpo da requisição primeiro
+    let id;
+    try {
+      const body = await request.json();
+      id = body.id;
+    } catch (e) {
+      // Se não conseguir ler o corpo, tentar como parâmetro de query
+      const { searchParams } = new URL(request.url);
+      id = searchParams.get("id");
+    }
+    
+    if (!id) {
+      return Response.json({ error: "ID do serviço é obrigatório" }, { status: 400 });
+    }
+    
     const previousData = await getServicoById(id);
+    const result = await deleteServico(id);
     
-    const servico = await deleteServico(id);
-    if (!servico) return Response.json({ error: "Not found" }, { status: 404 });
+    if (!result) {
+      return Response.json({ error: "Serviço não encontrado" }, { status: 404 });
+    }
     
-    // Log de auditoria para exclusão
+    // Log de auditoria
     try {
       await AuditService.createLog({
-        userId: userId || "system",
-        userName: userName || "Sistema",
+        userId: user._id,
+        userName: user.name,
         action: "DELETE",
         model: "Servico",
         documentId: id,
@@ -209,7 +231,6 @@ export async function DELETE(request) {
       });
     } catch (auditError) {
       console.error("Erro ao criar log de auditoria:", auditError);
-      // Não falhar a operação principal
     }
     
     return Response.json({ success: true });

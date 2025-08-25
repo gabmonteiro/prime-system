@@ -1,100 +1,182 @@
-import { UserService } from "../../../services/userService.js";
 import connectDB from "../../../libs/db.js";
-import { AuditService } from "../../../services/auditService";
+import { UserService } from "../../../services/userService.js";
+import { AuditService } from "../../../services/auditService.js";
+import { checkPermission } from "../../../services/permissionService.js";
+
+// Função para obter usuário atual baseado no cookie de autenticação
+async function getCurrentUser(request) {
+  try {
+    const cookieHeader = request.headers.get("cookie");
+    
+    if (!cookieHeader) {
+      return null;
+    }
+    
+    // Extrair o userId do cookie 'user'
+    const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+      const [key, value] = cookie.trim().split('=');
+      acc[key] = value;
+      return acc;
+    }, {});
+    
+    const userId = cookies.user;
+    
+    if (!userId) {
+      return null;
+    }
+    
+    // Buscar usuário no banco
+    const user = await UserService.getUserById(userId);
+    return user;
+  } catch (error) {
+    console.error("Erro ao obter usuário atual:", error);
+    return null;
+  }
+}
 
 export async function GET(request) {
   try {
-    // Garantir conexão com o banco
     await connectDB();
     
+    // Verificar autenticação
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
+    }
+    
+    // Verificar permissão de leitura
+    if (!checkPermission(user, "usuarios", "read")) {
+      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
+    }
+    
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    
+    if (id) {
+      const user = await UserService.getUserById(id);
+      if (!user) {
+        return Response.json({ error: "Usuário não encontrado" }, { status: 404 });
+      }
+      return Response.json(user);
+    }
+    
     const users = await UserService.getAllUsers();
-    // Garantir que sempre retorna um array
-    const result = Array.isArray(users) ? users : [];
-    return Response.json(result);
+    return Response.json(users);
   } catch (error) {
-    console.error("Erro ao buscar usuários:", error);
-    return Response.json(
-      { error: error.message || "Erro interno do servidor" },
-      { status: 500 },
-    );
+    console.error("Error in GET /api/user:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function POST(request) {
   try {
-    // Garantir conexão com o banco
     await connectDB();
     
-    const userData = await request.json();
-
-    // Validações básicas
-    if (!userData.name || !userData.email || !userData.password) {
-      return Response.json(
-        { error: "Nome, email e senha são obrigatórios" },
-        { status: 400 },
-      );
+    // Verificar autenticação
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
     }
-
-    // Extrair informações do usuário do corpo da requisição
-    const { userId, userName, ...createUserData } = userData;
-
-    const user = await UserService.createUser(createUserData);
     
-    // Log de auditoria para criação
+    // Verificar permissão de criação
+    if (!checkPermission(user, "usuarios", "create")) {
+      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
+    }
+    
+    const data = await request.json();
+    
+    // Validar campos obrigatórios
+    if (!data.name || !data.email || !data.password || !data.role) {
+      return Response.json({ 
+        error: "Campos obrigatórios: name, email, password, role" 
+      }, { status: 400 });
+    }
+    
+    // Validar role
+    const validRoles = ["admin", "gerente", "funcionario", "visualizador"];
+    if (!validRoles.includes(data.role)) {
+      return Response.json({ 
+        error: "Role inválida. Valores permitidos: admin, gerente, funcionario, visualizador" 
+      }, { status: 400 });
+    }
+    
+    const newUser = await UserService.createUser(data);
+    
+    // Log de auditoria
     try {
       await AuditService.createLog({
-        userId: userId || "system",
-        userName: userName || "Sistema",
+        userId: user._id,
+        userName: user.name,
         action: "CREATE",
         model: "User",
-        documentId: user._id || user.id,
-        newData: user,
+        documentId: newUser._id,
+        newData: { ...newUser, password: "[HIDDEN]" },
         ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "N/A",
         userAgent: request.headers.get("user-agent") || "N/A",
         metadata: { operation: "create_user" },
       });
     } catch (auditError) {
       console.error("Erro ao criar log de auditoria:", auditError);
-      // Não falhar a operação principal
     }
     
-    return Response.json(user, { status: 201 });
+    return Response.json(newUser, { status: 201 });
   } catch (error) {
-    console.error("Erro ao criar usuário:", error);
-    return Response.json(
-      { error: error.message || "Erro interno do servidor" },
-      { status: 500 },
-    );
+    console.error("Error in POST /api/user:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function PUT(request) {
   try {
-    const { id, userId, userName, ...userData } = await request.json();
-
-    if (!id) {
-      return Response.json(
-        { error: "ID do usuário é obrigatório" },
-        { status: 400 },
-      );
+    await connectDB();
+    
+    // Verificar autenticação
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
     }
-
+    
+    // Verificar permissão de atualização
+    if (!checkPermission(user, "usuarios", "update")) {
+      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
+    }
+    
+    const { id, ...data } = await request.json();
+    
+    if (!id) {
+      return Response.json({ error: "ID do usuário é obrigatório" }, { status: 400 });
+    }
+    
+    // Validar role se fornecida
+    if (data.role) {
+      const validRoles = ["admin", "gerente", "funcionario", "visualizador"];
+      if (!validRoles.includes(data.role)) {
+        return Response.json({ 
+          error: "Role inválida. Valores permitidos: admin, gerente, funcionario, visualizador" 
+        }, { status: 400 });
+      }
+    }
+    
     // Buscar dados anteriores para auditoria
     const previousData = await UserService.getUserById(id);
     
-    const user = await UserService.updateUser(id, userData);
+    const updatedUser = await UserService.updateUser(id, data);
     
-    // Log de auditoria para atualização
+    if (!updatedUser) {
+      return Response.json({ error: "Usuário não encontrado" }, { status: 404 });
+    }
+    
+    // Log de auditoria
     try {
-      const changedFields = AuditService.getChangedFields(previousData, user);
+      const changedFields = AuditService.getChangedFields(previousData, updatedUser);
       await AuditService.createLog({
-        userId: userId || "system",
-        userName: userName || "Sistema",
+        userId: user._id,
+        userName: user.name,
         action: "UPDATE",
         model: "User",
         documentId: id,
-        previousData,
-        newData: user,
+        previousData: { ...previousData, password: "[HIDDEN]" },
+        newData: { ...updatedUser, password: "[HIDDEN]" },
         changedFields,
         ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "N/A",
         userAgent: request.headers.get("user-agent") || "N/A",
@@ -102,60 +184,79 @@ export async function PUT(request) {
       });
     } catch (auditError) {
       console.error("Erro ao criar log de auditoria:", auditError);
-      // Não falhar a operação principal
     }
     
-    return Response.json(user);
+    return Response.json(updatedUser);
   } catch (error) {
-    console.error("Erro ao atualizar usuário:", error);
-    return Response.json(
-      { error: error.message || "Erro interno do servidor" },
-      { status: 500 },
-    );
+    console.error("Error in PUT /api/user:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function DELETE(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-
-    if (!id) {
-      return Response.json(
-        { error: "ID do usuário é obrigatório" },
-        { status: 400 },
-      );
+    await connectDB();
+    
+    // Verificar autenticação
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
     }
-
+    
+    // Verificar permissão de exclusão
+    if (!checkPermission(user, "usuarios", "delete")) {
+      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
+    }
+    
+    // Tentar obter ID do corpo da requisição primeiro
+    let id;
+    try {
+      const body = await request.json();
+      id = body.id;
+    } catch (e) {
+      // Se não conseguir ler o corpo, tentar como parâmetro de query
+      const { searchParams } = new URL(request.url);
+      id = searchParams.get("id");
+    }
+    
+    if (!id) {
+      return Response.json({ error: "ID do usuário é obrigatório" }, { status: 400 });
+    }
+    
+    // Não permitir que o usuário se delete
+    if (id === user._id.toString()) {
+      return Response.json({ error: "Não é possível excluir o próprio usuário" }, { status: 400 });
+    }
+    
     // Buscar dados antes da exclusão para auditoria
     const previousData = await UserService.getUserById(id);
     
     const result = await UserService.deleteUser(id);
     
-    // Log de auditoria para exclusão
+    if (!result) {
+      return Response.json({ error: "Usuário não encontrado" }, { status: 404 });
+    }
+    
+    // Log de auditoria
     try {
       await AuditService.createLog({
-        userId: "system", // Usuário que executou a exclusão
-        userName: "Sistema",
+        userId: user._id,
+        userName: user.name,
         action: "DELETE",
         model: "User",
         documentId: id,
-        previousData,
+        previousData: { ...previousData, password: "[HIDDEN]" },
         ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "N/A",
         userAgent: request.headers.get("user-agent") || "N/A",
         metadata: { operation: "delete_user" },
       });
     } catch (auditError) {
       console.error("Erro ao criar log de auditoria:", auditError);
-      // Não falhar a operação principal
     }
     
-    return Response.json(result);
+    return Response.json({ success: true });
   } catch (error) {
-    console.error("Erro ao excluir usuário:", error);
-    return Response.json(
-      { error: error.message || "Erro interno do servidor" },
-      { status: 500 },
-    );
+    console.error("Error in DELETE /api/user:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
