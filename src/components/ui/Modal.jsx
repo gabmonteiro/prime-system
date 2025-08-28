@@ -74,7 +74,9 @@ export default function Modal({
       >
         {(title || showCloseButton) && (
           <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white rounded-t-xl">
-            <h3 id={titleId} className="text-xl font-semibold text-gray-900">{title}</h3>
+            <h3 id={titleId} className="text-xl font-semibold text-gray-900">
+              {title}
+            </h3>
             {showCloseButton && (
               <button
                 onClick={onClose}
@@ -89,6 +91,6 @@ export default function Modal({
         <div className="modal-body p-6">{children}</div>
       </div>
     </div>,
-    portalTarget
+    portalTarget,
   );
 }

@@ -49,8 +49,8 @@ export default function Select({
         onClick={() => !disabled && setOpen((v) => !v)}
         disabled={disabled}
         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-left flex items-center justify-between ${
-          disabled 
-            ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed" 
+          disabled
+            ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
             : "border-gray-300 bg-white text-gray-900 hover:bg-gray-50"
         } ${className}`}
       >
@@ -92,7 +92,9 @@ export default function Select({
                 setOpen(false);
               }}
               className={`cursor-pointer select-none px-3 py-2 text-sm hover:bg-blue-50 ${
-                opt.value === value ? "bg-blue-50 text-blue-700" : "text-gray-900"
+                opt.value === value
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-900"
               }`}
             >
               {opt.label}
@@ -103,4 +105,3 @@ export default function Select({
     </div>
   );
 }
-

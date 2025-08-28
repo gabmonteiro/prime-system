@@ -7,7 +7,7 @@ export function requirePermission(resource, action) {
       // Aqui você deve implementar a lógica para obter o usuário atual
       // Por exemplo, através de um token JWT ou sessão
       const user = await getCurrentUser(request);
-      
+
       if (!user) {
         return { error: "Usuário não autenticado", status: 401 };
       }
@@ -29,7 +29,7 @@ export function requireAdmin() {
   return async (request) => {
     try {
       const user = await getCurrentUser(request);
-      
+
       if (!user) {
         return { error: "Usuário não autenticado", status: 401 };
       }
@@ -51,7 +51,7 @@ export function requireResourceAccess(resource) {
   return async (request) => {
     try {
       const user = await getCurrentUser(request);
-      
+
       if (!user) {
         return { error: "Usuário não autenticado", status: 401 };
       }
@@ -73,7 +73,7 @@ export function requireResourceAccess(resource) {
 async function getCurrentUser(request) {
   // TODO: Implementar lógica de autenticação
   // Por exemplo, verificar JWT token, sessão, etc.
-  
+
   // Por enquanto, retornar null para evitar erros
   // Você deve implementar esta função baseada no seu sistema de autenticação
   return null;
@@ -85,7 +85,7 @@ export const requireCRUDPermission = (resource) => ({
   read: requirePermission(resource, "read"),
   update: requirePermission(resource, "update"),
   delete: requirePermission(resource, "delete"),
-  manage: requirePermission(resource, "manage")
+  manage: requirePermission(resource, "manage"),
 });
 
 // Middleware para verificar se o usuário pode gerenciar um recurso

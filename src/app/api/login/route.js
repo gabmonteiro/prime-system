@@ -5,7 +5,7 @@ export async function POST(req) {
   try {
     // Garantir conexão com o banco
     await connectDB();
-    
+
     const { email, password } = await req.json();
 
     // Validações básicas
@@ -17,14 +17,16 @@ export async function POST(req) {
     }
 
     if (!email.includes("@")) {
-      return new Response(
-        JSON.stringify({ message: "Email inválido" }),
-        { status: 400 },
-      );
+      return new Response(JSON.stringify({ message: "Email inválido" }), {
+        status: 400,
+      });
     }
 
-    const authResult = await UserService.validateCredentials(email.toLowerCase().trim(), password);
-    
+    const authResult = await UserService.validateCredentials(
+      email.toLowerCase().trim(),
+      password,
+    );
+
     if (!authResult.isValid) {
       return new Response(
         JSON.stringify({ message: "Credenciais inválidas" }),
@@ -42,31 +44,31 @@ export async function POST(req) {
       role: user.role,
       isAdmin: user.role === "admin", // Compatibilidade com código existente
       permissions: user.permissions,
-      permissionsList: user.permissionsList
+      permissionsList: user.permissionsList,
     };
 
     // Define cookie de autenticação seguro
-    const response = new Response(JSON.stringify(userData), { 
+    const response = new Response(JSON.stringify(userData), {
       status: 200,
       headers: {
-        'Content-Type': 'application/json'
-      }
+        "Content-Type": "application/json",
+      },
     });
-    
+
     response.headers.append(
       "Set-Cookie",
-      `user=${user._id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400; Secure=${process.env.NODE_ENV === 'production'}`,
+      `user=${user._id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400; Secure=${process.env.NODE_ENV === "production"}`,
     );
-    
+
     return response;
   } catch (err) {
     console.error("Erro no login:", err);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         message: "Erro interno do servidor",
-        error: process.env.NODE_ENV === 'development' ? err.message : undefined 
-      }), 
-      { status: 500 }
+        error: process.env.NODE_ENV === "development" ? err.message : undefined,
+      }),
+      { status: 500 },
     );
   }
 }

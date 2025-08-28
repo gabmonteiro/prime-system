@@ -8,7 +8,7 @@ export class AuditService {
     try {
       console.log("AuditService.createLog - Iniciando criação de log");
       console.log("Dados recebidos:", auditData);
-      
+
       const {
         userId,
         userName,
@@ -25,15 +25,25 @@ export class AuditService {
         metadata = {},
       } = auditData;
 
-      console.log("Dados extraídos:", { userId, userName, action, model, documentId });
+      console.log("Dados extraídos:", {
+        userId,
+        userName,
+        action,
+        model,
+        documentId,
+      });
 
       // Converter dados para estruturas planas/JSON-safe antes de sanitizar
       const plainPreviousData = this.makeJsonSafe(previousData);
       const plainNewData = this.makeJsonSafe(newData);
 
       // Sanitizar dados sensíveis
-      const sanitizedPreviousData = plainPreviousData ? this.sanitizeSensitiveData(plainPreviousData) : null;
-      const sanitizedNewData = plainNewData ? this.sanitizeSensitiveData(plainNewData) : null;
+      const sanitizedPreviousData = plainPreviousData
+        ? this.sanitizeSensitiveData(plainPreviousData)
+        : null;
+      const sanitizedNewData = plainNewData
+        ? this.sanitizeSensitiveData(plainNewData)
+        : null;
 
       console.log("Dados sanitizados prontos para salvar");
 
@@ -70,7 +80,7 @@ export class AuditService {
 
       const result = await auditLog.save();
       console.log("Log salvo com sucesso:", { id: result._id });
-      
+
       return result;
     } catch (error) {
       console.error("Erro ao criar log de auditoria:", error);
@@ -88,7 +98,11 @@ export class AuditService {
 
     // Mongoose Document
     if (typeof value === "object" && typeof value.toObject === "function") {
-      return value.toObject({ depopulate: true, getters: false, virtuals: false });
+      return value.toObject({
+        depopulate: true,
+        getters: false,
+        virtuals: false,
+      });
     }
 
     // Tenta serialização JSON para simplificar estruturas e remover metadados
@@ -115,7 +129,12 @@ export class AuditService {
     // Tipos especiais
     if (data instanceof Date) return data.toISOString();
     // ObjectId (duck typing)
-    if (data && (data._bsontype === "ObjectId" || (typeof data.equals === "function" && typeof data.toString === "function"))) {
+    if (
+      data &&
+      (data._bsontype === "ObjectId" ||
+        (typeof data.equals === "function" &&
+          typeof data.toString === "function"))
+    ) {
       return data.toString();
     }
 
@@ -125,7 +144,13 @@ export class AuditService {
     }
 
     // Objetos planos
-    const sensitiveFields = ["password", "token", "secret", "key", "authorization"];
+    const sensitiveFields = [
+      "password",
+      "token",
+      "secret",
+      "key",
+      "authorization",
+    ];
     const result = {};
 
     for (const [key, value] of Object.entries(data)) {
@@ -145,17 +170,18 @@ export class AuditService {
   static async getAuditLogs(filters = {}, page = 1, limit = 20) {
     try {
       const skip = (page - 1) * limit;
-      
+
       // Construir filtros de consulta
       const query = {};
-      
+
       if (filters.userId) query.userId = filters.userId;
       if (filters.action) query.action = filters.action;
       if (filters.model) query.model = filters.model;
       if (filters.status) query.status = filters.status;
       if (filters.startDate || filters.endDate) {
         query.timestamp = {};
-        if (filters.startDate) query.timestamp.$gte = new Date(filters.startDate);
+        if (filters.startDate)
+          query.timestamp.$gte = new Date(filters.startDate);
         if (filters.endDate) query.timestamp.$lte = new Date(filters.endDate);
       }
 
@@ -286,16 +312,16 @@ export class AuditService {
    */
   static getChangedFields(oldData, newData) {
     if (!oldData || !newData) return [];
-    
+
     const changedFields = [];
     const allKeys = new Set([...Object.keys(oldData), ...Object.keys(newData)]);
-    
-    allKeys.forEach(key => {
-      if (key === 'updatedAt' || key === '__v') return; // Ignorar campos automáticos
-      
+
+    allKeys.forEach((key) => {
+      if (key === "updatedAt" || key === "__v") return; // Ignorar campos automáticos
+
       const oldValue = oldData[key];
       const newValue = newData[key];
-      
+
       if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
         changedFields.push({
           field: key,
@@ -304,7 +330,7 @@ export class AuditService {
         });
       }
     });
-    
+
     return changedFields;
   }
 
@@ -315,11 +341,11 @@ export class AuditService {
     try {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
-      
+
       const result = await AuditLog.deleteMany({
-        timestamp: { $lt: cutoffDate }
+        timestamp: { $lt: cutoffDate },
       });
-      
+
       return result;
     } catch (error) {
       console.error("Erro ao limpar logs antigos:", error);

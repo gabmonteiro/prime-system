@@ -79,22 +79,21 @@ export default function ServicosPage() {
       setIsLoading(true);
       const [response, configResponse] = await Promise.all([
         fetch(`/api/servico?page=${page}&limit=${limit}`),
-        fetch("/api/system-config")
+        fetch("/api/system-config"),
       ]);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
       const configData = await configResponse.json();
-      
+
       setServicos(Array.isArray(result.data) ? result.data : []);
       setTotalPages(result.pagination?.totalPages || 1);
       setTotalItems(result.pagination?.total || 0);
       setCurrentPage(result.pagination?.page || page);
       setFiscalMonthStart(configData.fiscalMonthStart || 17);
-      
     } catch (error) {
       console.error("Erro ao carregar serviços:", error);
       setServicos([]);
@@ -122,7 +121,7 @@ export default function ServicosPage() {
 
   async function fetchUsuarios() {
     try {
-      const response = await fetch("/api/user");
+      const response = await fetch("/api/user?forSelection=true");
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -138,19 +137,21 @@ export default function ServicosPage() {
 
   function handleFormChange(e) {
     const { name, value, type, checked } = e.target;
-    
+
     if (name === "semTipo") {
       // Se marcar "sem tipo", limpa o tipo de serviço e torna valor personalizado obrigatório
-      setForm({ 
-        ...form, 
+      setForm({
+        ...form,
         [name]: checked,
         tipoServico: checked ? "" : form.tipoServico,
-        valorPersonalizado: checked ? (form.valorPersonalizado || "") : form.valorPersonalizado
+        valorPersonalizado: checked
+          ? form.valorPersonalizado || ""
+          : form.valorPersonalizado,
       });
     } else {
-      setForm({ 
-        ...form, 
-        [name]: type === "checkbox" ? checked : value 
+      setForm({
+        ...form,
+        [name]: type === "checkbox" ? checked : value,
       });
     }
   }
@@ -169,19 +170,29 @@ export default function ServicosPage() {
     try {
       // Validações específicas para o campo semTipo
       if (form.semTipo && !form.valorPersonalizado) {
-        showToast("Valor personalizado é obrigatório quando não há tipo de serviço", "error");
+        showToast(
+          "Valor personalizado é obrigatório quando não há tipo de serviço",
+          "error",
+        );
         setIsLoading(false);
         return;
       }
 
       if (!form.semTipo && !form.tipoServico) {
-        showToast("Tipo de serviço é obrigatório quando não é marcado como 'sem tipo'", "error");
+        showToast(
+          "Tipo de serviço é obrigatório quando não é marcado como 'sem tipo'",
+          "error",
+        );
         setIsLoading(false);
         return;
       }
 
       let dataCorreta = form.data;
-      if (form.data && typeof form.data === "string" && form.data.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      if (
+        form.data &&
+        typeof form.data === "string" &&
+        form.data.match(/^\d{4}-\d{2}-\d{2}$/)
+      ) {
         const [ano, mes, dia] = form.data.split("-").map(Number);
         dataCorreta = new Date(ano, mes - 1, dia);
       }
@@ -208,7 +219,9 @@ export default function ServicosPage() {
           nomeCarro: form.nomeCarro,
           semTipo: false,
           tipoServico: form.tipoServico,
-          valorPersonalizado: form.valorPersonalizado ? Number(form.valorPersonalizado) : null,
+          valorPersonalizado: form.valorPersonalizado
+            ? Number(form.valorPersonalizado)
+            : null,
           data: dataCorreta,
           participantes: form.participantes,
           pago: form.pago,
@@ -257,7 +270,7 @@ export default function ServicosPage() {
         ? new Date(servico.data).toISOString().slice(0, 10)
         : "",
       participantes: Array.isArray(servico.participantes)
-        ? servico.participantes.map(p => typeof p === 'object' ? p._id : p)
+        ? servico.participantes.map((p) => (typeof p === "object" ? p._id : p))
         : [],
       pago: typeof servico.pago === "boolean" ? servico.pago : false,
     });
@@ -271,7 +284,7 @@ export default function ServicosPage() {
         await fetch("/api/servico", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             id,
             userId: user?._id || "system",
             userName: user?.name || "Sistema",
@@ -291,8 +304,8 @@ export default function ServicosPage() {
       await fetch("/api/servico", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          id: servico._id, 
+        body: JSON.stringify({
+          id: servico._id,
           pago: !servico.pago,
           userId: user?._id || "system",
           userName: user?.name || "Sistema",
@@ -300,12 +313,12 @@ export default function ServicosPage() {
       });
       setServicos((prev) =>
         prev.map((s) =>
-          s._id === servico._id ? { ...s, pago: !servico.pago } : s
-        )
+          s._id === servico._id ? { ...s, pago: !servico.pago } : s,
+        ),
       );
       showToast(
         `Serviço marcado como ${!servico.pago ? "pago" : "não pago"}!`,
-        "success"
+        "success",
       );
     } catch (error) {
       console.error("Erro ao atualizar status de pagamento:", error);
@@ -435,21 +448,21 @@ export default function ServicosPage() {
                   <WrenchScrewdriverIcon className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    Serviços
-                  </h1>
+                  <h1 className="text-2xl font-bold text-gray-900">Serviços</h1>
                   <p className="text-gray-600">
                     Gerencie todos os serviços realizados
                   </p>
                 </div>
               </div>
-              <button
-                onClick={openModal}
-                className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Novo Serviço
-              </button>
+              {user.role !== "visualizador" && (
+                <button
+                  onClick={openModal}
+                  className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <PlusIcon className="h-5 w-5 mr-2" />
+                  Novo Serviço
+                </button>
+              )}
             </div>
           </div>
 
@@ -481,7 +494,8 @@ export default function ServicosPage() {
                     Total Geral
                   </p>
                   <p className="text-2xl font-bold text-gray-900">
-                    R$ {totalGeral.toLocaleString("pt-BR", {
+                    R${" "}
+                    {totalGeral.toLocaleString("pt-BR", {
                       minimumFractionDigits: 2,
                     })}
                   </p>
@@ -499,7 +513,8 @@ export default function ServicosPage() {
                     Mês Fiscal Atual
                   </p>
                   <p className="text-2xl font-bold text-gray-900">
-                    R$ {totalFiscalMonth.toLocaleString("pt-BR", {
+                    R${" "}
+                    {totalFiscalMonth.toLocaleString("pt-BR", {
                       minimumFractionDigits: 2,
                     })}
                   </p>
@@ -526,15 +541,17 @@ export default function ServicosPage() {
                 <p className="text-gray-600">
                   Comece criando seu primeiro serviço.
                 </p>
-                <div className="mt-6">
-                  <button
-                    onClick={openModal}
-                    className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <PlusIcon className="h-5 w-5 mr-2" />
-                    Novo Serviço
-                  </button>
-                </div>
+                {user.role !== "visualizador" && (
+                  <div className="mt-6">
+                    <button
+                      onClick={openModal}
+                      className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <PlusIcon className="h-5 w-5 mr-2" />
+                      Novo Serviço
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="overflow-hidden">
@@ -544,15 +561,20 @@ export default function ServicosPage() {
                     {servicos.map((servico, idx) => {
                       const prev = servicos[idx - 1];
                       const currFiscalMonth = getFiscalMonth(servico.data);
-                      const prevFiscalMonth = prev ? getFiscalMonth(prev.data) : null;
-                      const showDivider = idx === 0 || currFiscalMonth !== prevFiscalMonth;
+                      const prevFiscalMonth = prev
+                        ? getFiscalMonth(prev.data)
+                        : null;
+                      const showDivider =
+                        idx === 0 || currFiscalMonth !== prevFiscalMonth;
                       return (
                         <React.Fragment key={servico._id}>
                           {showDivider && (
                             <div className="my-4 flex items-center">
                               <div className="flex-1 border-t border-gray-300"></div>
                               <span className="mx-4 text-xs font-semibold text-gray-500">
-                                {new Date(`${currFiscalMonth}-17`).toLocaleDateString("pt-BR", {
+                                {new Date(
+                                  `${currFiscalMonth}-17`,
+                                ).toLocaleDateString("pt-BR", {
                                   year: "numeric",
                                   month: "long",
                                 })}
@@ -577,21 +599,26 @@ export default function ServicosPage() {
                                     {servico.nomeCarro}
                                   </p>
                                   <p className="text-xs text-gray-500">
-                                    {servico.semTipo ? "Sem tipo específico" : servico.tipoServico?.nome || "N/A"}
+                                    {servico.semTipo
+                                      ? "Sem tipo específico"
+                                      : servico.tipoServico?.nome || "N/A"}
                                   </p>
                                   <p className="text-xs text-gray-400">
-                                    {servico.participantes && servico.participantes.length > 0 
-                                      ? servico.participantes.map(p => 
-                                          typeof p === 'object' ? p.name : p
-                                        ).join(", ")
-                                      : "Sem participantes"
-                                    }
+                                    {servico.participantes &&
+                                    servico.participantes.length > 0
+                                      ? servico.participantes
+                                          .map((p) =>
+                                            typeof p === "object" ? p.name : p,
+                                          )
+                                          .join(", ")
+                                      : "Sem participantes"}
                                   </p>
                                 </div>
                               </div>
                               <div className="text-right">
                                 <div className="text-sm font-medium text-gray-900 mb-1">
-                                  R$ {(
+                                  R${" "}
+                                  {(
                                     servico.valorPersonalizado ||
                                     servico.tipoServico?.valor ||
                                     0
@@ -599,29 +626,35 @@ export default function ServicosPage() {
                                     minimumFractionDigits: 2,
                                   })}
                                 </div>
-                                <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
-                                  servico.pago ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                                }`}>
+                                <span
+                                  className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                                    servico.pago
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-red-100 text-red-800"
+                                  }`}
+                                >
                                   {servico.pago ? "Pago" : "Não Pago"}
                                 </span>
                               </div>
                             </div>
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => handleEdit(servico)}
-                                className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
-                              >
-                                <PencilIcon className="h-4 w-4 mr-1" />
-                                Editar
-                              </button>
-                              <button
-                                onClick={() => handleDelete(servico._id)}
-                                className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
-                              >
-                                <TrashIcon className="h-4 w-4 mr-1" />
-                                Excluir
-                              </button>
-                            </div>
+                            {user.role !== "visualizador" && (
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleEdit(servico)}
+                                  className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
+                                >
+                                  <PencilIcon className="h-4 w-4 mr-1" />
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(servico._id)}
+                                  className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
+                                >
+                                  <TrashIcon className="h-4 w-4 mr-1" />
+                                  Excluir
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </React.Fragment>
                       );
@@ -652,9 +685,11 @@ export default function ServicosPage() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Participantes
                         </th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Ações
-                        </th>
+                        {user.role !== "visualizador" && (
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ações
+                          </th>
+                        )}
                         <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
@@ -664,8 +699,11 @@ export default function ServicosPage() {
                       {servicos.map((servico, idx) => {
                         const prev = servicos[idx - 1];
                         const currFiscalMonth = getFiscalMonth(servico.data);
-                        const prevFiscalMonth = prev ? getFiscalMonth(prev.data) : null;
-                        const showDivider = idx === 0 || currFiscalMonth !== prevFiscalMonth;
+                        const prevFiscalMonth = prev
+                          ? getFiscalMonth(prev.data)
+                          : null;
+                        const showDivider =
+                          idx === 0 || currFiscalMonth !== prevFiscalMonth;
                         return (
                           <React.Fragment key={servico._id}>
                             {showDivider && (
@@ -674,7 +712,9 @@ export default function ServicosPage() {
                                   <div className="flex items-center">
                                     <div className="flex-1 border-t border-gray-300"></div>
                                     <span className="mx-4 text-xs font-semibold text-gray-500">
-                                      {new Date(`${currFiscalMonth}-17`).toLocaleDateString("pt-BR", {
+                                      {new Date(
+                                        `${currFiscalMonth}-17`,
+                                      ).toLocaleDateString("pt-BR", {
                                         year: "numeric",
                                         month: "long",
                                       })}
@@ -720,7 +760,8 @@ export default function ServicosPage() {
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm font-medium text-gray-900">
-                                  R$ {(
+                                  R${" "}
+                                  {(
                                     servico.valorPersonalizado ||
                                     servico.tipoServico?.valor ||
                                     0
@@ -752,33 +793,39 @@ export default function ServicosPage() {
                                   <div className="flex items-center">
                                     <UsersIcon className="h-4 w-4 text-gray-400 mr-1" />
                                     <span className="text-sm text-gray-900">
-                                      {servico.participantes.map(p => 
-                                        typeof p === 'object' ? p.name : p
-                                      ).join(", ")}
+                                      {servico.participantes
+                                        .map((p) =>
+                                          typeof p === "object" ? p.name : p,
+                                        )
+                                        .join(", ")}
                                     </span>
                                   </div>
                                 ) : (
-                                  <span className="text-sm text-gray-500">-</span>
+                                  <span className="text-sm text-gray-500">
+                                    -
+                                  </span>
                                 )}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div className="flex items-center justify-end space-x-2">
-                                  <button
-                                    onClick={() => handleEdit(servico)}
-                                    className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
-                                    title="Editar serviço"
-                                  >
-                                    <PencilIcon className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDelete(servico._id)}
-                                    className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
-                                    title="Excluir serviço"
-                                  >
-                                    <TrashIcon className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </td>
+                              {user.role !== "visualizador" ? (
+                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                  <div className="flex items-center justify-end space-x-2">
+                                    <button
+                                      onClick={() => handleEdit(servico)}
+                                      className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
+                                      title="Editar serviço"
+                                    >
+                                      <PencilIcon className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(servico._id)}
+                                      className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
+                                      title="Excluir serviço"
+                                    >
+                                      <TrashIcon className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </td>
+                              ) : null}
                               <td className="px-6 py-4 whitespace-nowrap text-center">
                                 <button
                                   type="button"
@@ -787,20 +834,30 @@ export default function ServicosPage() {
                                     setShowConfirmPago(true);
                                   }}
                                   className={`relative inline-flex h-6 w-12 border-2 border-transparent rounded-full cursor-pointer transition-colors duration-200 focus:outline-none ${
-                                    servico.pago ? "bg-green-500" : "bg-gray-300"
+                                    servico.pago
+                                      ? "bg-green-500"
+                                      : "bg-gray-300"
                                   }`}
                                   aria-pressed={servico.pago}
                                   tabIndex={0}
-                                  title={servico.pago ? "Marcar como não pago" : "Marcar como pago"}
+                                  title={
+                                    servico.pago
+                                      ? "Marcar como não pago"
+                                      : "Marcar como pago"
+                                  }
                                 >
                                   <span
                                     className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition-transform duration-200 ${
-                                      servico.pago ? "translate-x-6" : "translate-x-1"
+                                      servico.pago
+                                        ? "translate-x-6"
+                                        : "translate-x-1"
                                     }`}
                                   />
                                   <span className="sr-only">Toggle pago</span>
                                 </button>
-                                <span className={`ml-3 text-xs font-semibold ${servico.pago ? "text-green-700" : "text-red-700"}`}>
+                                <span
+                                  className={`ml-3 text-xs font-semibold ${servico.pago ? "text-green-700" : "text-red-700"}`}
+                                >
                                   {servico.pago ? "Pago" : "Não Pago"}
                                 </span>
                               </td>
@@ -905,8 +962,20 @@ export default function ServicosPage() {
                 <CustomSelect
                   id="tipoServico"
                   value={form.tipoServico}
-                  onChange={(val) => handleFormChange({ target: { name: "tipoServico", value: val } })}
-                  options={[{ value: "", label: "Selecione o tipo" }, ...(Array.isArray(tipos) ? tipos.map((t) => ({ value: t._id, label: `${t.nome} - R$ ${t.valor}` })) : [])]}
+                  onChange={(val) =>
+                    handleFormChange({
+                      target: { name: "tipoServico", value: val },
+                    })
+                  }
+                  options={[
+                    { value: "", label: "Selecione o tipo" },
+                    ...(Array.isArray(tipos)
+                      ? tipos.map((t) => ({
+                          value: t._id,
+                          label: `${t.nome} - R$ ${t.valor}`,
+                        }))
+                      : []),
+                  ]}
                   className=""
                   disabled={form.semTipo}
                 />
@@ -919,7 +988,8 @@ export default function ServicosPage() {
                     form.semTipo ? "text-red-700" : "text-gray-700"
                   }`}
                 >
-                  Valor Personalizado {form.semTipo ? "(obrigatório)" : "(opcional)"}
+                  Valor Personalizado{" "}
+                  {form.semTipo ? "(obrigatório)" : "(opcional)"}
                 </label>
                 <input
                   type="number"
@@ -931,19 +1001,24 @@ export default function ServicosPage() {
                   min="0"
                   required={form.semTipo}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    form.semTipo 
-                      ? "border-red-300 focus:ring-red-500" 
+                    form.semTipo
+                      ? "border-red-300 focus:ring-red-500"
                       : "border-gray-300 focus:ring-blue-500"
                   }`}
-                  placeholder={form.semTipo ? "Valor obrigatório" : "Deixe vazio para usar valor padrão"}
-                />
-                <p className={`text-xs mt-1 ${
-                  form.semTipo ? "text-red-600" : "text-gray-500"
-                }`}>
-                  {form.semTipo 
-                    ? "Valor obrigatório quando não há tipo de serviço" 
-                    : "Se preenchido, sobrescreverá o valor padrão do tipo de serviço"
+                  placeholder={
+                    form.semTipo
+                      ? "Valor obrigatório"
+                      : "Deixe vazio para usar valor padrão"
                   }
+                />
+                <p
+                  className={`text-xs mt-1 ${
+                    form.semTipo ? "text-red-600" : "text-gray-500"
+                  }`}
+                >
+                  {form.semTipo
+                    ? "Valor obrigatório quando não há tipo de serviço"
+                    : "Se preenchido, sobrescreverá o valor padrão do tipo de serviço"}
                 </p>
               </div>
 
@@ -957,7 +1032,9 @@ export default function ServicosPage() {
                 <DatePicker
                   id="data"
                   value={form.data}
-                  onChange={(val) => handleFormChange({ target: { name: "data", value: val } })}
+                  onChange={(val) =>
+                    handleFormChange({ target: { name: "data", value: val } })
+                  }
                   className=""
                   required
                 />
@@ -986,7 +1063,9 @@ export default function ServicosPage() {
                   />
                   <span className="sr-only">Toggle pago</span>
                 </button>
-                <span className={`ml-3 text-sm font-medium ${form.pago ? "text-green-600" : "text-red-600"}`}>
+                <span
+                  className={`ml-3 text-sm font-medium ${form.pago ? "text-green-600" : "text-red-600"}`}
+                >
                   {form.pago ? "Pago" : "Não Pago"}
                 </span>
               </div>
@@ -1009,7 +1088,9 @@ export default function ServicosPage() {
                       }
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
-                    <span className="ml-2 text-sm text-gray-700">{usuario.name}</span>
+                    <span className="ml-2 text-sm text-gray-700">
+                      {usuario.name}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -1051,7 +1132,11 @@ export default function ServicosPage() {
               </h2>
               <p className="mb-4 text-gray-700">
                 Tem certeza que deseja marcar este serviço como{" "}
-                <span className={pendingPago.pago ? "text-red-600" : "text-green-600"}>
+                <span
+                  className={
+                    pendingPago.pago ? "text-red-600" : "text-green-600"
+                  }
+                >
                   {pendingPago.pago ? "Não Pago" : "Pago"}
                 </span>
                 ?

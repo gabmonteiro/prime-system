@@ -26,62 +26,67 @@ export default function HomePage() {
     {
       icon: WrenchScrewdriverIcon,
       title: "Gerenciar Serviços",
-      description: "Controle completo de serviços prestados, clientes, veículos e valores. Sistema de participantes e cálculo automático de comissões.",
+      description:
+        "Controle completo de serviços prestados, clientes, veículos e valores. Sistema de participantes e cálculo automático de comissões.",
       color: "from-blue-500 to-indigo-500 text-white border-blue-200",
-      stats: "Gestão completa de serviços"
+      stats: "Gestão completa de serviços",
     },
     {
       icon: CurrencyDollarIcon,
       title: "Controle de Despesas",
-      description: "Monitore gastos e compras da empresa com categorização automática. Relatórios detalhados de custos operacionais.",
+      description:
+        "Monitore gastos e compras da empresa com categorização automática. Relatórios detalhados de custos operacionais.",
       color: "from-green-500 to-emerald-500 text-white border-green-200",
-      stats: "Controle financeiro total"
+      stats: "Controle financeiro total",
     },
     {
       icon: ShoppingCartIcon,
       title: "Lista de Compras",
-      description: "Planeje futuras aquisições com sistema de prioridades (urgente, média, baixa) e estimativas de valores.",
+      description:
+        "Planeje futuras aquisições com sistema de prioridades (urgente, média, baixa) e estimativas de valores.",
       color: "from-purple-500 to-pink-500 text-white border-purple-200",
-      stats: "Planejamento inteligente"
+      stats: "Planejamento inteligente",
     },
     {
       icon: UserGroupIcon,
       title: "Gerenciar Usuários",
-      description: "Administre usuários do sistema com controles de acesso e permissões diferenciadas para admins.",
+      description:
+        "Administre usuários do sistema com controles de acesso e permissões diferenciadas para admins.",
       color: "from-gray-700 to-gray-400 text-white border-gray-300",
-      stats: "Segurança e controle"
-    }
+      stats: "Segurança e controle",
+    },
   ];
 
   const stats = [
     {
       icon: ChartBarIcon,
       title: "Dashboard Analítico",
-      description: "Visão completa do negócio com gráficos e métricas em tempo real",
+      description:
+        "Visão completa do negócio com gráficos e métricas em tempo real",
       value: "100%",
-      label: "Visibilidade"
+      label: "Visibilidade",
     },
     {
       icon: BanknotesIcon,
       title: "Controle Financeiro",
       description: "Receitas, despesas e saldo mensal automatizados",
       value: "R$",
-      label: "Precisão"
+      label: "Precisão",
     },
     {
       icon: TagIcon,
       title: "Categorização",
       description: "Organize gastos por tipo e categorias personalizadas",
       value: "Auto",
-      label: "Organização"
+      label: "Organização",
     },
     {
       icon: CalendarIcon,
       title: "Histórico Completo",
       description: "Acompanhe a evolução do negócio ao longo do tempo",
       value: "365",
-      label: "Dias/ano"
-    }
+      label: "Dias/ano",
+    },
   ];
 
   return (
@@ -107,10 +112,7 @@ export default function HomePage() {
                   Prime System
                 </h1>
               </div>
-              <button
-                onClick={handleLoginRedirect}
-                className="btn-primary"
-              >
+              <button onClick={handleLoginRedirect} className="btn-primary">
                 <span>Acessar Sistema</span>
                 <ArrowRightIcon className="h-5 w-5" />
               </button>
@@ -129,8 +131,12 @@ export default function HomePage() {
                 </span>
               </h1>
               <p className="text-xl sm:text-2xl text-gray-600 mb-12 max-w-4xl mx-auto leading-relaxed">
-                Sistema completo para controle de serviços, despesas, usuários e planejamento financeiro. 
-                <span className="font-semibold text-indigo-600"> Tudo em um só lugar.</span>
+                Sistema completo para controle de serviços, despesas, usuários e
+                planejamento financeiro.
+                <span className="font-semibold text-indigo-600">
+                  {" "}
+                  Tudo em um só lugar.
+                </span>
               </p>
               <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
                 <button
@@ -157,7 +163,8 @@ export default function HomePage() {
                 Funcionalidades Principais
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Todas as ferramentas que você precisa para gerenciar seu negócio automotivo de forma eficiente
+                Todas as ferramentas que você precisa para gerenciar seu negócio
+                automotivo de forma eficiente
               </p>
             </div>
 
@@ -166,22 +173,22 @@ export default function HomePage() {
                 const Icon = feature.icon;
                 // Novas cores suaves para os cards
                 const cardGradients = [
-                  'from-blue-100 to-blue-50',
-                  'from-green-100 to-emerald-50',
-                  'from-purple-100 to-pink-50',
-                  'from-gray-100 to-gray-50'
+                  "from-blue-100 to-blue-50",
+                  "from-green-100 to-emerald-50",
+                  "from-purple-100 to-pink-50",
+                  "from-gray-100 to-gray-50",
                 ];
                 const iconGradients = [
-                  'from-blue-400 to-indigo-400',
-                  'from-green-400 to-emerald-400',
-                  'from-purple-400 to-pink-400',
-                  'from-gray-400 to-gray-300'
+                  "from-blue-400 to-indigo-400",
+                  "from-green-400 to-emerald-400",
+                  "from-purple-400 to-pink-400",
+                  "from-gray-400 to-gray-300",
                 ];
                 const textColors = [
-                  'text-blue-900',
-                  'text-green-900',
-                  'text-purple-900',
-                  'text-gray-800'
+                  "text-blue-900",
+                  "text-green-900",
+                  "text-purple-900",
+                  "text-gray-800",
                 ];
                 const idx = index % 4;
                 return (
@@ -195,13 +202,19 @@ export default function HomePage() {
                     >
                       <Icon className="h-8 w-8 text-white" />
                     </div>
-                    <h3 className={`text-2xl font-bold mb-4 ${textColors[idx]}`}>
+                    <h3
+                      className={`text-2xl font-bold mb-4 ${textColors[idx]}`}
+                    >
                       {feature.title}
                     </h3>
-                    <p className={`mb-6 leading-relaxed ${textColors[idx]} opacity-80`}>
+                    <p
+                      className={`mb-6 leading-relaxed ${textColors[idx]} opacity-80`}
+                    >
                       {feature.description}
                     </p>
-                    <div className={`inline-flex items-center px-3 py-1 bg-white/70 rounded-full text-sm font-medium ${textColors[idx]} border border-gray-200`}>
+                    <div
+                      className={`inline-flex items-center px-3 py-1 bg-white/70 rounded-full text-sm font-medium ${textColors[idx]} border border-gray-200`}
+                    >
                       {feature.stats}
                     </div>
                   </div>
@@ -219,7 +232,8 @@ export default function HomePage() {
                 Controle Total do Negócio
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Métricas e análises que ajudam você a tomar decisões estratégicas
+                Métricas e análises que ajudam você a tomar decisões
+                estratégicas
               </p>
             </div>
 
@@ -262,7 +276,7 @@ export default function HomePage() {
                 Pronto para começar?
               </h2>
               <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-                Transforme a gestão do seu negócio automotivo hoje mesmo. 
+                Transforme a gestão do seu negócio automotivo hoje mesmo.
                 Sistema completo, fácil de usar e resultados imediatos.
               </p>
               <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
@@ -292,8 +306,8 @@ export default function HomePage() {
               <h3 className="text-2xl font-bold">Prime System</h3>
             </div>
             <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
-              Sistema de gestão completo para empresas automotivas. 
-              Controle de serviços, despesas, usuários e muito mais.
+              Sistema de gestão completo para empresas automotivas. Controle de
+              serviços, despesas, usuários e muito mais.
             </p>
             <div className="border-t border-gray-800 pt-8">
               <p className="text-gray-500">

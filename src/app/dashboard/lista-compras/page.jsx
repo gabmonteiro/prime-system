@@ -141,7 +141,7 @@ export default function ListaComprasPage() {
         await fetch("/api/futuraCompra", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             id,
             // Adicionar informações do usuário para auditoria
             userId: user?._id || "system",
@@ -287,13 +287,15 @@ export default function ListaComprasPage() {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={openModal}
-                className="inline-flex items-center justify-center px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Novo Item
-              </button>
+              {user.role !== "visualizador" && (
+                <button
+                  onClick={openModal}
+                  className="inline-flex items-center justify-center px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  <PlusIcon className="h-5 w-5 mr-2" />
+                  Novo Item
+                </button>
+              )}
             </div>
           </div>
 
@@ -421,22 +423,24 @@ export default function ListaComprasPage() {
                             </span>
                           </div>
                         </div>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEdit(compra)}
-                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
-                          >
-                            <PencilIcon className="h-4 w-4 mr-1" />
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => handleDelete(compra._id)}
-                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
-                          >
-                            <TrashIcon className="h-4 w-4 mr-1" />
-                            Excluir
-                          </button>
-                        </div>
+                        {user.role !== "visualizador" && (
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEdit(compra)}
+                              className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
+                            >
+                              <PencilIcon className="h-4 w-4 mr-1" />
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => handleDelete(compra._id)}
+                              className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
+                            >
+                              <TrashIcon className="h-4 w-4 mr-1" />
+                              Excluir
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -456,9 +460,11 @@ export default function ListaComprasPage() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Urgência
                         </th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Ações
-                        </th>
+                        {user.role !== "visualizador" && (
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ações
+                          </th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -499,24 +505,26 @@ export default function ListaComprasPage() {
                               </span>
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div className="flex items-center justify-end space-x-2">
-                              <button
-                                onClick={() => handleEdit(compra)}
-                                className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
-                                title="Editar item"
-                              >
-                                <PencilIcon className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(compra._id)}
-                                className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
-                                title="Excluir item"
-                              >
-                                <TrashIcon className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
+                          {user.role !== "visualizador" ? (
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <div className="flex items-center justify-end space-x-2">
+                                <button
+                                  onClick={() => handleEdit(compra)}
+                                  className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
+                                  title="Editar item"
+                                >
+                                  <PencilIcon className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(compra._id)}
+                                  className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
+                                  title="Excluir item"
+                                >
+                                  <TrashIcon className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          ) : null}
                         </tr>
                       ))}
                     </tbody>
@@ -594,7 +602,11 @@ export default function ListaComprasPage() {
                 <CustomSelect
                   id="urgencia"
                   value={form.urgencia}
-                  onChange={(val) => handleFormChange({ target: { name: "urgencia", value: val } })}
+                  onChange={(val) =>
+                    handleFormChange({
+                      target: { name: "urgencia", value: val },
+                    })
+                  }
                   options={[
                     { value: "baixo", label: "Baixa - Pode aguardar" },
                     { value: "medio", label: "Média - Planejado para breve" },

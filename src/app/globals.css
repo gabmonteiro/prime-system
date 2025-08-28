@@ -18,7 +18,8 @@
   scroll-behavior: smooth;
 }
 
-html, body {
+html,
+body {
   min-height: 100vh;
   height: 100%;
 }
@@ -263,11 +264,11 @@ body {
   opacity: 0;
 }
 
-  /* Simple fade-in without transform to avoid breaking positioned popovers */
-  .animate-fadeIn {
-    animation: fadeIn 0.25s ease-out forwards;
-    opacity: 0;
-  }
+/* Simple fade-in without transform to avoid breaking positioned popovers */
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out forwards;
+  opacity: 0;
+}
 
 .animate-pulse-slow {
   animation: pulse-slow 3s ease-in-out infinite;

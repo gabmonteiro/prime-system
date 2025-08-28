@@ -5,8 +5,8 @@ const DEFAULT_CONFIGS = {
   fiscalMonthStart: {
     key: "fiscalMonthStart",
     value: 17, // Dia 17 (padrão atual)
-    description: "Dia de início do mês fiscal (1-31)"
-  }
+    description: "Dia de início do mês fiscal (1-31)",
+  },
 };
 
 // Inicializar configurações padrão se não existirem
@@ -40,16 +40,16 @@ export async function setConfig(key, value, description = null) {
   try {
     const config = await SystemConfig.findOneAndUpdate(
       { key },
-      { 
+      {
         value,
         description: description || DEFAULT_CONFIGS[key]?.description,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       },
-      { 
-        upsert: true, 
+      {
+        upsert: true,
         new: true,
-        setDefaultsOnInsert: true
-      }
+        setDefaultsOnInsert: true,
+      },
     );
     return config;
   } catch (error) {
@@ -63,19 +63,19 @@ export async function getAllConfigs() {
   try {
     const configs = await SystemConfig.find({});
     const result = {};
-    
+
     // Adicionar configurações existentes
-    configs.forEach(config => {
+    configs.forEach((config) => {
       result[config.key] = config.value;
     });
-    
+
     // Adicionar configurações padrão que não existem
     for (const [key, config] of Object.entries(DEFAULT_CONFIGS)) {
       if (!result.hasOwnProperty(key)) {
         result[key] = config.value;
       }
     }
-    
+
     return result;
   } catch (error) {
     console.error("❌ Erro ao obter todas as configurações:", error);

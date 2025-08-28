@@ -72,16 +72,16 @@ export default function UsuariosPage() {
 
       if (response.ok) {
         // Aceita tanto array direto quanto objeto { users: [...] }
-        const usersArray = Array.isArray(data) ? data : (data.users || []);
-        console.log('🔍 Debug fetchData:', { 
-          responseOk: response.ok, 
-          dataType: typeof data, 
+        const usersArray = Array.isArray(data) ? data : data.users || [];
+        console.log("🔍 Debug fetchData:", {
+          responseOk: response.ok,
+          dataType: typeof data,
           isArray: Array.isArray(data),
           usersArrayLength: usersArray.length,
           firstUser: usersArray[0],
-          firstUserId: usersArray[0]?._id
+          firstUserId: usersArray[0]?._id,
         });
-        
+
         // Os usuários já vêm ordenados da API por data de criação (mais recente primeiro)
         setUsuarios(usersArray);
       } else {
@@ -108,12 +108,17 @@ export default function UsuariosPage() {
     setIsLoading(true);
 
     try {
-      const payload = { 
+      const payload = {
         ...form,
         // Adicionar informações do usuário para auditoria
         userId: user?._id || "system",
         userName: user?.name || "Sistema",
       };
+
+      // Se estiver editando e a senha estiver vazia, remover o campo
+      if (editId && (!payload.password || payload.password.trim() === "")) {
+        delete payload.password;
+      }
 
       const url = "/api/user";
       const method = editId ? "PUT" : "POST";
@@ -400,9 +405,13 @@ export default function UsuariosPage() {
                             ) : (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                 <UserIcon className="h-3 w-3 mr-1" />
-                                {usuario.role === "gerente" ? "Gerente" : 
-                                 usuario.role === "funcionario" ? "Funcionário" : 
-                                 usuario.role === "visualizador" ? "Visualizador" : "Usuário"}
+                                {usuario.role === "gerente"
+                                  ? "Gerente"
+                                  : usuario.role === "funcionario"
+                                    ? "Funcionário"
+                                    : usuario.role === "visualizador"
+                                      ? "Visualizador"
+                                      : "Usuário"}
                               </span>
                             )}
                           </td>
@@ -537,10 +546,14 @@ export default function UsuariosPage() {
                   <option value="admin">Administrador</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  {form.role === "admin" && "Administradores têm acesso completo ao sistema"}
-                  {form.role === "gerente" && "Gerentes têm acesso amplo para gerenciar operações"}
-                  {form.role === "funcionario" && "Funcionários têm acesso básico para operações do dia a dia"}
-                  {form.role === "visualizador" && "Visualizadores têm acesso apenas para consultas"}
+                  {form.role === "admin" &&
+                    "Administradores têm acesso completo ao sistema"}
+                  {form.role === "gerente" &&
+                    "Gerentes têm acesso amplo para gerenciar operações"}
+                  {form.role === "funcionario" &&
+                    "Funcionários têm acesso básico para operações do dia a dia"}
+                  {form.role === "visualizador" &&
+                    "Visualizadores têm acesso apenas para consultas"}
                 </p>
               </div>
             </div>

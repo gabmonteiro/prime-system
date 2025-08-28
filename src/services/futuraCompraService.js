@@ -5,8 +5,7 @@ export async function createFuturaCompra(data) {
 }
 
 export async function getFuturaCompras() {
-  return await FuturaCompra.find()
-    .sort({ createdAt: -1 }); // Ordenação: data de criação (mais recente primeiro)
+  return await FuturaCompra.find().sort({ createdAt: -1 }); // Ordenação: data de criação (mais recente primeiro)
 }
 
 export async function getFuturaCompraById(id) {

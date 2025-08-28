@@ -1,11 +1,11 @@
 "use client";
 import React from "react";
-import { useAuth } from '../../context/authContext';
-import { useRouter, usePathname } from 'next/navigation';
-import { 
-  HomeIcon, 
-  CogIcon, 
-  CurrencyDollarIcon, 
+import { useAuth } from "../../context/authContext";
+import { useRouter, usePathname } from "next/navigation";
+import {
+  HomeIcon,
+  CogIcon,
+  CurrencyDollarIcon,
   ShoppingCartIcon,
   ArrowRightOnRectangleIcon,
   ChartBarIcon,
@@ -15,19 +15,19 @@ import {
   Bars3Icon,
   WrenchScrewdriverIcon,
   ShieldCheckIcon,
-  DocumentTextIcon
-} from '@heroicons/react/24/outline';
-import { 
-  HomeIcon as HomeIconSolid, 
-  CogIcon as CogIconSolid, 
-  CurrencyDollarIcon as CurrencyDollarIconSolid, 
+  DocumentTextIcon,
+} from "@heroicons/react/24/outline";
+import {
+  HomeIcon as HomeIconSolid,
+  CogIcon as CogIconSolid,
+  CurrencyDollarIcon as CurrencyDollarIconSolid,
   ShoppingCartIcon as ShoppingCartIconSolid,
   ChartBarIcon as ChartBarIconSolid,
   UserGroupIcon as UserGroupIconSolid,
   WrenchScrewdriverIcon as WrenchScrewdriverIconSolid,
   ShieldCheckIcon as ShieldCheckIconSolid,
-  DocumentTextIcon as DocumentTextIconSolid
-} from '@heroicons/react/24/solid';
+  DocumentTextIcon as DocumentTextIconSolid,
+} from "@heroicons/react/24/solid";
 
 export default function Sidebar() {
   const { logout, user, hasPermission, isAdmin } = useAuth();
@@ -37,87 +37,94 @@ export default function Sidebar() {
 
   // Mover navigationLinks para depois da declaração de user
   const navigationLinks = [
-    { 
-      href: '/dashboard', 
-      label: 'Dashboard', 
+    {
+      href: "/dashboard",
+      label: "Dashboard",
       icon: HomeIcon,
       iconSolid: HomeIconSolid,
-      description: 'Visão geral do sistema',
-      permission: 'dashboard:read'
+      description: "Visão geral do sistema",
+      permission: "dashboard:read",
     },
-    { 
-      href: '/dashboard/servicos', 
-      label: 'Serviços', 
+    {
+      href: "/dashboard/servicos",
+      label: "Serviços",
       icon: CogIcon,
       iconSolid: CogIconSolid,
-      description: 'Gestão de serviços',
-      permission: 'servicos:read'
+      description: "Gestão de serviços",
+      permission: "servicos:read",
     },
-    { 
-      href: '/dashboard/tipos-servicos', 
-      label: 'Tipos de Serviços', 
+    {
+      href: "/dashboard/tipos-servicos",
+      label: "Tipos de Serviços",
       icon: WrenchScrewdriverIcon,
       iconSolid: WrenchScrewdriverIconSolid,
-      description: 'Configurar tipos',
-      permission: 'tipos-servicos:read'
+      description: "Configurar tipos",
+      permission: "tipos-servicos:read",
     },
-    { 
-      href: '/dashboard/despesas', 
-      label: 'Despesas', 
+    {
+      href: "/dashboard/despesas",
+      label: "Despesas",
       icon: CurrencyDollarIcon,
       iconSolid: CurrencyDollarIconSolid,
-      description: 'Controle financeiro',
-      permission: 'despesas:read'
+      description: "Controle financeiro",
+      permission: "despesas:read",
     },
-    { 
-      href: '/dashboard/lista-compras', 
-      label: 'Lista de Compras', 
+    {
+      href: "/dashboard/lista-compras",
+      label: "Lista de Compras",
       icon: ShoppingCartIcon,
       iconSolid: ShoppingCartIconSolid,
-      description: 'Compras futuras',
-      permission: 'lista-compras:read'
+      description: "Compras futuras",
+      permission: "lista-compras:read",
     },
-    { 
-      href: '/dashboard/usuarios', 
-      label: 'Usuários', 
+    {
+      href: "/dashboard/usuarios",
+      label: "Usuários",
       icon: UserGroupIcon,
       iconSolid: UserGroupIconSolid,
-      description: 'Gerenciar usuários',
-      permission: 'usuarios:read'
+      description: "Gerenciar usuários",
+      permission: "usuarios:read",
     },
     // Links apenas para admins e gerentes
-    ...(isAdmin || hasPermission('auditoria', 'read') ? [
-      {
-        href: '/dashboard/auditoria', 
-        label: 'Auditoria', 
-        icon: DocumentTextIcon,
-        iconSolid: DocumentTextIconSolid,
-        description: 'Logs do sistema',
-        permission: 'auditoria:read'
-      }
-    ] : []),
+    ...(isAdmin || hasPermission("auditoria", "read")
+      ? [
+          {
+            href: "/dashboard/auditoria",
+            label: "Auditoria",
+            icon: DocumentTextIcon,
+            iconSolid: DocumentTextIconSolid,
+            description: "Logs do sistema",
+            permission: "auditoria:read",
+          },
+        ]
+      : []),
     // Links apenas para admins
-    ...(isAdmin ? [
-      {
-        href: '/dashboard/configuracoes', 
-        label: 'Configurações', 
-        icon: ShieldCheckIcon,
-        iconSolid: ShieldCheckIconSolid,
-        description: 'Configurações do sistema',
-        permission: 'configuracoes:read'
-      }
-    ] : [])
+    ...(isAdmin
+      ? [
+          {
+            href: "/dashboard/configuracoes",
+            label: "Configurações",
+            icon: ShieldCheckIcon,
+            iconSolid: ShieldCheckIconSolid,
+            description: "Configurações do sistema",
+            permission: "configuracoes:read",
+          },
+        ]
+      : []),
   ];
 
   // Filtrar links baseado nas permissões do usuário
-  const filteredNavigationLinks = navigationLinks.filter(link => {
+  const filteredNavigationLinks = navigationLinks.filter((link) => {
     if (!link.permission) return true;
-    return hasPermission(link.permission.split(':')[0], link.permission.split(':')[1]);
+    return hasPermission(
+      link.permission.split(":")[0],
+      link.permission.split(":")[1],
+    );
   });
 
   function handleLogout() {
     logout();
-    router.push('/login');
+    router.push("/login");
   }
 
   function isActiveRoute(href) {
@@ -155,14 +162,20 @@ export default function Sidebar() {
             Menu Principal
           </h2>
           <ul className="space-y-1">
-            {filteredNavigationLinks.map(link => {
+            {filteredNavigationLinks.map((link) => {
               const isActive = isActiveRoute(link.href);
               const Icon = isActive ? link.iconSolid : link.icon;
               return (
                 <li
                   key={link.href}
                   className="!border-0 !border-none bg-transparent rounded-xl"
-                  style={{ border: 'none', background: 'transparent', boxShadow: 'none', margin: 0, padding: 0 }}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    boxShadow: "none",
+                    margin: 0,
+                    padding: 0,
+                  }}
                 >
                   <button
                     type="button"
@@ -171,11 +184,12 @@ export default function Sidebar() {
                       setOpen(false); // Fecha sidebar no mobile ao navegar
                     }}
                     className={`w-full flex items-center space-x-3 py-3 rounded-xl text-left transition-all duration-200 group relative
-                      ${isActive 
-                        ? 'bg-blue-100 bg-opacity-70 text-blue-800'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 hover:bg-opacity-50'
+                      ${
+                        isActive
+                          ? "bg-blue-100 bg-opacity-70 text-blue-800"
+                          : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 hover:bg-opacity-50"
                       }
-                      ${isActive ? 'pl-2' : 'pl-3'}
+                      ${isActive ? "pl-2" : "pl-3"}
                     `}
                   >
                     {isActive && (
@@ -183,28 +197,36 @@ export default function Sidebar() {
                     )}
                     <Icon
                       className={`w-6 h-6 flex-shrink-0 transition-all duration-200 drop-shadow-sm ${
-                        isActive 
-                          ? 'text-blue-600'
-                          : 'text-gray-400 group-hover:text-blue-500'
+                        isActive
+                          ? "text-blue-600"
+                          : "text-gray-400 group-hover:text-blue-500"
                       }`}
                       style={{
-                        backgroundColor: isActive ? '#fff' : 'transparent',
-                        borderRadius: isActive ? '0.5rem' : undefined,
-                        padding: isActive ? '0.25rem' : undefined,
-                        boxShadow: isActive ? '0 2px 8px rgba(59,130,246,0.15)' : undefined,
-                        color: isActive ? '#2563eb' : '#94a3b8',
-                        border: 'none'
+                        backgroundColor: isActive ? "#fff" : "transparent",
+                        borderRadius: isActive ? "0.5rem" : undefined,
+                        padding: isActive ? "0.25rem" : undefined,
+                        boxShadow: isActive
+                          ? "0 2px 8px rgba(59,130,246,0.15)"
+                          : undefined,
+                        color: isActive ? "#2563eb" : "#94a3b8",
+                        border: "none",
                       }}
                     />
                     <div className="flex-1 min-w-0">
-                      <div className={`font-medium text-sm ${
-                        isActive ? 'text-blue-800' : 'text-gray-700 group-hover:text-gray-900'
-                      }`}>
+                      <div
+                        className={`font-medium text-sm ${
+                          isActive
+                            ? "text-blue-800"
+                            : "text-gray-700 group-hover:text-gray-900"
+                        }`}
+                      >
                         {link.label}
                       </div>
-                      <div className={`text-xs ${
-                        isActive ? 'text-blue-600' : 'text-gray-500'
-                      }`}>
+                      <div
+                        className={`text-xs ${
+                          isActive ? "text-blue-600" : "text-gray-500"
+                        }`}
+                      >
                         {link.description}
                       </div>
                     </div>
@@ -224,10 +246,10 @@ export default function Sidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-gray-900 truncate">
-              {user?.name || 'Usuário'}
+              {user?.name || "Usuário"}
             </div>
             <div className="text-xs text-gray-500 truncate">
-              {user?.email || 'user@empresa.com'}
+              {user?.email || "user@empresa.com"}
             </div>
           </div>
         </div>
@@ -245,8 +267,8 @@ export default function Sidebar() {
   return (
     <>
       {/* Botão de abrir sidebar no mobile - Fixo na tela */}
-      <div 
-        className={`fixed top-4 left-4 z-[99999] lg:hidden ${open ? 'invisible' : 'visible'}`}
+      <div
+        className={`fixed top-4 left-4 z-[99999] lg:hidden ${open ? "invisible" : "visible"}`}
       >
         <button
           className="p-2 bg-white rounded-full shadow-lg border border-gray-200 backdrop-blur-sm hover:bg-gray-50 transition-colors"
@@ -259,16 +281,15 @@ export default function Sidebar() {
 
       {/* Overlay e sidebar mobile */}
       <div
-        className={`h-full fixed inset-0 z-[9990] transition-opacity duration-300 ${open ? 'opacity-100 visible' : 'opacity-0 invisible'} lg:hidden`}
-        style={{ background: 'rgba(0,0,0,0.4)' }}
+        className={`h-full fixed inset-0 z-[9990] transition-opacity duration-300 ${open ? "opacity-100 visible" : "opacity-0 invisible"} lg:hidden`}
+        style={{ background: "rgba(0,0,0,0.4)" }}
         onClick={() => setOpen(false)}
       ></div>
       <aside
-        className={`h-full fixed top-0 left-0 z-[9995] w-72 bg-gray-50 flex flex-col shadow-xl transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'} lg:w-72 h-screen min-h-screen overflow-y-auto`}
+        className={`h-full fixed top-0 left-0 z-[9995] w-72 bg-gray-50 flex flex-col shadow-xl transform transition-transform duration-300 ease-out lg:static lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"} lg:w-72 h-screen min-h-screen overflow-y-auto`}
       >
         {sidebarContent}
       </aside>
     </>
   );
-  
 }

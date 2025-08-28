@@ -7,10 +7,10 @@ export function auditMiddleware(req, res, next) {
   // Capturar informações básicas da requisição
   req.auditInfo = {
     ipAddress: req.ip || req.connection.remoteAddress,
-    userAgent: req.get('User-Agent'),
+    userAgent: req.get("User-Agent"),
     timestamp: new Date(),
   };
-  
+
   next();
 }
 
@@ -33,25 +33,25 @@ export function withAudit(operation, auditConfig) {
   return async (req, res, next) => {
     const originalSend = res.json;
     const originalStatus = res.status;
-    
+
     let responseData = null;
     let statusCode = 200;
-    
+
     // Interceptar resposta
-    res.json = function(data) {
+    res.json = function (data) {
       responseData = data;
       return originalSend.call(this, data);
     };
-    
-    res.status = function(code) {
+
+    res.status = function (code) {
       statusCode = code;
       return originalStatus.call(this, code);
     };
-    
+
     try {
       // Executar operação original
       await operation(req, res, next);
-      
+
       // Após a operação, criar log de auditoria
       if (req.user && auditConfig) {
         const auditData = {
@@ -59,14 +59,25 @@ export function withAudit(operation, auditConfig) {
           userName: req.user.name || req.user.email,
           action: auditConfig.action,
           model: auditConfig.model,
-          documentId: auditConfig.getDocumentId ? auditConfig.getDocumentId(req, responseData) : null,
-          previousData: auditConfig.getPreviousData ? await auditConfig.getPreviousData(req) : null,
-          newData: auditConfig.getNewData ? auditConfig.getNewData(req, responseData) : null,
-          changedFields: auditConfig.getChangedFields ? auditConfig.getChangedFields(req, responseData) : [],
+          documentId: auditConfig.getDocumentId
+            ? auditConfig.getDocumentId(req, responseData)
+            : null,
+          previousData: auditConfig.getPreviousData
+            ? await auditConfig.getPreviousData(req)
+            : null,
+          newData: auditConfig.getNewData
+            ? auditConfig.getNewData(req, responseData)
+            : null,
+          changedFields: auditConfig.getChangedFields
+            ? auditConfig.getChangedFields(req, responseData)
+            : [],
           ipAddress: req.auditInfo?.ipAddress,
           userAgent: req.auditInfo?.userAgent,
           status: statusCode < 400 ? "SUCCESS" : "FAILED",
-          errorMessage: statusCode >= 400 ? responseData?.error || "Erro na operação" : null,
+          errorMessage:
+            statusCode >= 400
+              ? responseData?.error || "Erro na operação"
+              : null,
           metadata: {
             method: req.method,
             url: req.url,
@@ -74,7 +85,7 @@ export function withAudit(operation, auditConfig) {
             ...auditConfig.metadata,
           },
         };
-        
+
         // Criar log de auditoria de forma assíncrona
         createAuditLog(auditData);
       }
@@ -86,7 +97,9 @@ export function withAudit(operation, auditConfig) {
           userName: req.user.name || req.user.email,
           action: auditConfig.action,
           model: auditConfig.model,
-          documentId: auditConfig.getDocumentId ? auditConfig.getDocumentId(req, null) : null,
+          documentId: auditConfig.getDocumentId
+            ? auditConfig.getDocumentId(req, null)
+            : null,
           ipAddress: req.auditInfo?.ipAddress,
           userAgent: req.auditInfo?.userAgent,
           status: "FAILED",
@@ -98,10 +111,10 @@ export function withAudit(operation, auditConfig) {
             ...auditConfig.metadata,
           },
         };
-        
+
         createAuditLog(auditData);
       }
-      
+
       throw error;
     }
   };
@@ -118,7 +131,7 @@ export const auditConfigs = {
     getNewData: (req, responseData) => responseData,
     metadata: { operation: "create" },
   },
-  
+
   // UPDATE operations
   update: {
     action: "UPDATE",
@@ -134,7 +147,7 @@ export const auditConfigs = {
     },
     metadata: { operation: "update" },
   },
-  
+
   // DELETE operations
   delete: {
     action: "DELETE",
@@ -152,7 +165,7 @@ export const auditConfigs = {
  */
 export function createAuditConfig(config) {
   return {
-    ...auditConfigs[config.action] || auditConfigs.create,
+    ...(auditConfigs[config.action] || auditConfigs.create),
     ...config,
   };
 }

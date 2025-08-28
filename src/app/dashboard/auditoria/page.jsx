@@ -76,30 +76,29 @@ export default function AuditoriaPage() {
   async function fetchData(page = 1, limit = 20) {
     try {
       setIsLoading(true);
-      
+
       // Construir query string com filtros
       const queryParams = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
       });
-      
+
       if (filters.action) queryParams.append("action", filters.action);
       if (filters.model) queryParams.append("model", filters.model);
       if (filters.status) queryParams.append("status", filters.status);
       if (filters.startDate) queryParams.append("startDate", filters.startDate);
       if (filters.endDate) queryParams.append("endDate", filters.endDate);
-      
+
       const response = await fetch(`/api/audit?${queryParams.toString()}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
       setAuditLogs(Array.isArray(result.data) ? result.data : []);
       setTotalPages(result.pagination?.totalPages || 1);
       setTotalItems(result.pagination?.total || 0);
       setCurrentPage(result.pagination?.page || page);
-      
     } catch (error) {
       console.error("Erro ao carregar logs de auditoria:", error);
       setAuditLogs([]);
@@ -110,7 +109,7 @@ export default function AuditoriaPage() {
   }
 
   function handleFilterChange(name, value) {
-    setFilters(prev => ({ ...prev, [name]: value }));
+    setFilters((prev) => ({ ...prev, [name]: value }));
     setCurrentPage(1); // Reset para primeira página ao filtrar
   }
 
@@ -210,8 +209,12 @@ export default function AuditoriaPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <ShieldCheckIcon className="h-16 w-16 text-red-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Acesso Negado</h1>
-          <p className="text-gray-600">Você não tem permissão para acessar esta página.</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Acesso Negado
+          </h1>
+          <p className="text-gray-600">
+            Você não tem permissão para acessar esta página.
+          </p>
         </div>
       </div>
     );
@@ -230,7 +233,9 @@ export default function AuditoriaPage() {
             <div className="flex items-center">
               <span className="flex-1">{toastState.message}</span>
               <button
-                onClick={() => setToastState((prev) => ({ ...prev, show: false }))}
+                onClick={() =>
+                  setToastState((prev) => ({ ...prev, show: false }))
+                }
                 className="ml-2 text-white hover:text-gray-200"
               >
                 ×
@@ -258,7 +263,9 @@ export default function AuditoriaPage() {
               </div>
               <div className="flex items-center space-x-2 text-sm text-gray-500">
                 <ClockIcon className="h-4 w-4" />
-                <span>Última atualização: {new Date().toLocaleTimeString("pt-BR")}</span>
+                <span>
+                  Última atualização: {new Date().toLocaleTimeString("pt-BR")}
+                </span>
               </div>
             </div>
           </div>
@@ -269,7 +276,7 @@ export default function AuditoriaPage() {
               <FunnelIcon className="h-5 w-5 text-gray-500" />
               <h3 className="text-lg font-medium text-gray-900">Filtros</h3>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -357,7 +364,9 @@ export default function AuditoriaPage() {
               <div className="flex items-center justify-center h-64">
                 <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-gray-600">Carregando logs de auditoria...</span>
+                  <span className="text-gray-600">
+                    Carregando logs de auditoria...
+                  </span>
                 </div>
               </div>
             ) : auditLogs.length === 0 ? (
@@ -387,10 +396,14 @@ export default function AuditoriaPage() {
                             </div>
                             <div>
                               <div className="flex items-center space-x-2 mb-1">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getActionColor(log.action)}`}>
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getActionColor(log.action)}`}
+                                >
                                   {log.action}
                                 </span>
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}>
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}
+                                >
                                   {getStatusIcon(log.status)}
                                   <span className="ml-1">{log.status}</span>
                                 </span>
@@ -399,7 +412,9 @@ export default function AuditoriaPage() {
                                 {log.model} - {log.userName}
                               </h3>
                               <p className="text-sm text-gray-600">
-                                {truncateText(log.metadata?.operation || "Operação")}
+                                {truncateText(
+                                  log.metadata?.operation || "Operação",
+                                )}
                               </p>
                             </div>
                           </div>
@@ -409,7 +424,7 @@ export default function AuditoriaPage() {
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                           <div className="flex items-center space-x-2">
                             <UserIcon className="h-3 w-3" />
@@ -472,7 +487,9 @@ export default function AuditoriaPage() {
                                 </div>
                               </div>
                               <div className="ml-3">
-                                <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getActionColor(log.action)}`}>
+                                <div
+                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getActionColor(log.action)}`}
+                                >
                                   {log.action}
                                 </div>
                                 <div className="text-xs text-gray-500 mt-1">
@@ -499,13 +516,17 @@ export default function AuditoriaPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{log.model}</div>
+                            <div className="text-sm text-gray-900">
+                              {log.model}
+                            </div>
                             <div className="text-sm text-gray-500">
                               ID: {log.documentId}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}>
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}
+                            >
                               {getStatusIcon(log.status)}
                               <span className="ml-1">{log.status}</span>
                             </span>
@@ -557,7 +578,7 @@ export default function AuditoriaPage() {
         <Modal
           isOpen={modalOpen}
           onClose={closeModal}
-          title={`Detalhes do Log de Auditoria - ${selectedLog?.action || ''}`}
+          title={`Detalhes do Log de Auditoria - ${selectedLog?.action || ""}`}
         >
           {selectedLog && (
             <div className="space-y-6 max-h-[80vh] overflow-y-auto">
@@ -582,20 +603,26 @@ export default function AuditoriaPage() {
                     )}
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
-                        {selectedLog.action === "CREATE" && "Criação de Registro"}
-                        {selectedLog.action === "UPDATE" && "Atualização de Registro"}
-                        {selectedLog.action === "DELETE" && "Exclusão de Registro"}
+                        {selectedLog.action === "CREATE" &&
+                          "Criação de Registro"}
+                        {selectedLog.action === "UPDATE" &&
+                          "Atualização de Registro"}
+                        {selectedLog.action === "DELETE" &&
+                          "Exclusão de Registro"}
                       </h3>
                       <p className="text-sm text-gray-600">
-                        {selectedLog.model} • {formatTimestamp(selectedLog.timestamp)}
+                        {selectedLog.model} •{" "}
+                        {formatTimestamp(selectedLog.timestamp)}
                       </p>
                     </div>
                   </div>
-                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    selectedLog.status === "SUCCESS" 
-                      ? "bg-green-100 text-green-800" 
-                      : "bg-red-100 text-red-800"
-                  }`}>
+                  <div
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      selectedLog.status === "SUCCESS"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
                     {selectedLog.status}
                   </div>
                 </div>
@@ -606,7 +633,9 @@ export default function AuditoriaPage() {
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="flex items-center mb-2">
                     <UserIcon className="h-4 w-4 text-gray-500 mr-2" />
-                    <label className="text-sm font-medium text-gray-700">Usuário</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Usuário
+                    </label>
                   </div>
                   <div className="text-sm text-gray-900 font-medium">
                     {selectedLog.userName}
@@ -619,7 +648,9 @@ export default function AuditoriaPage() {
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="flex items-center mb-2">
                     <ComputerDesktopIcon className="h-4 w-4 text-gray-500 mr-2" />
-                    <label className="text-sm font-medium text-gray-700">Modelo</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Modelo
+                    </label>
                   </div>
                   <div className="text-sm text-gray-900 font-medium">
                     {selectedLog.model}
@@ -634,25 +665,36 @@ export default function AuditoriaPage() {
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
                 <div className="flex items-center mb-3">
                   <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-2" />
-                  <h4 className="text-sm font-semibold text-blue-900">Resumo da Operação</h4>
+                  <h4 className="text-sm font-semibold text-blue-900">
+                    Resumo da Operação
+                  </h4>
                 </div>
                 <div className="text-sm text-blue-800">
                   {selectedLog.action === "CREATE" && (
                     <div className="flex items-center">
                       <span className="text-lg mr-2">✅</span>
-                      <p><strong>{selectedLog.userName}</strong> criou um novo registro de <strong>{selectedLog.model}</strong></p>
+                      <p>
+                        <strong>{selectedLog.userName}</strong> criou um novo
+                        registro de <strong>{selectedLog.model}</strong>
+                      </p>
                     </div>
                   )}
                   {selectedLog.action === "UPDATE" && (
                     <div className="flex items-center">
                       <span className="text-lg mr-2">🔄</span>
-                      <p><strong>{selectedLog.userName}</strong> atualizou um registro de <strong>{selectedLog.model}</strong></p>
+                      <p>
+                        <strong>{selectedLog.userName}</strong> atualizou um
+                        registro de <strong>{selectedLog.model}</strong>
+                      </p>
                     </div>
                   )}
                   {selectedLog.action === "DELETE" && (
                     <div className="flex items-center">
                       <span className="text-lg mr-2">🗑️</span>
-                      <p><strong>{selectedLog.userName}</strong> excluiu um registro de <strong>{selectedLog.model}</strong></p>
+                      <p>
+                        <strong>{selectedLog.userName}</strong> excluiu um
+                        registro de <strong>{selectedLog.model}</strong>
+                      </p>
                     </div>
                   )}
                 </div>
@@ -663,7 +705,9 @@ export default function AuditoriaPage() {
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="flex items-center mb-2">
                     <GlobeAltIcon className="h-4 w-4 text-gray-500 mr-2" />
-                    <label className="text-sm font-medium text-gray-700">Endereço IP</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Endereço IP
+                    </label>
                   </div>
                   <div className="text-sm text-gray-900 font-mono bg-white px-2 py-1 rounded border">
                     {selectedLog.ipAddress || "N/A"}
@@ -673,7 +717,9 @@ export default function AuditoriaPage() {
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="flex items-center mb-2">
                     <ComputerDesktopIcon className="h-4 w-4 text-gray-500 mr-2" />
-                    <label className="text-sm font-medium text-gray-700">User Agent</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      User Agent
+                    </label>
                   </div>
                   <div className="text-sm text-gray-900 bg-white px-2 py-1 rounded border">
                     {truncateText(selectedLog.userAgent, 80)}
@@ -688,7 +734,9 @@ export default function AuditoriaPage() {
                   <label className="text-sm font-medium text-gray-700">
                     Dados Anteriores
                     {selectedLog.action === "CREATE" && (
-                      <span className="ml-2 text-xs text-gray-500 font-normal">(Não aplicável para criação)</span>
+                      <span className="ml-2 text-xs text-gray-500 font-normal">
+                        (Não aplicável para criação)
+                      </span>
                     )}
                   </label>
                 </div>
@@ -700,10 +748,9 @@ export default function AuditoriaPage() {
                   </div>
                 ) : (
                   <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-500 italic">
-                    {selectedLog.action === "CREATE" 
+                    {selectedLog.action === "CREATE"
                       ? "Nenhum dado anterior (operação de criação)"
-                      : "Nenhum dado anterior disponível"
-                    }
+                      : "Nenhum dado anterior disponível"}
                   </div>
                 )}
               </div>
@@ -715,7 +762,9 @@ export default function AuditoriaPage() {
                   <label className="text-sm font-medium text-gray-700">
                     Dados Novos
                     {selectedLog.action === "DELETE" && (
-                      <span className="ml-2 text-xs text-gray-500 font-normal">(Não aplicável para exclusão)</span>
+                      <span className="ml-2 text-xs text-gray-500 font-normal">
+                        (Não aplicável para exclusão)
+                      </span>
                     )}
                   </label>
                 </div>
@@ -727,10 +776,9 @@ export default function AuditoriaPage() {
                   </div>
                 ) : (
                   <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-500 italic">
-                    {selectedLog.action === "DELETE" 
+                    {selectedLog.action === "DELETE"
                       ? "Nenhum dado novo (operação de exclusão)"
-                      : "Nenhum dado novo disponível"
-                    }
+                      : "Nenhum dado novo disponível"}
                   </div>
                 )}
               </div>
@@ -742,23 +790,33 @@ export default function AuditoriaPage() {
                   <label className="text-sm font-medium text-gray-700">
                     Campos Alterados
                     {selectedLog.action === "CREATE" && (
-                      <span className="ml-2 text-xs text-gray-500 font-normal">(Todos os campos são novos)</span>
+                      <span className="ml-2 text-xs text-gray-500 font-normal">
+                        (Todos os campos são novos)
+                      </span>
                     )}
                     {selectedLog.action === "DELETE" && (
-                      <span className="ml-2 text-xs text-gray-500 font-normal">(Não aplicável para exclusão)</span>
+                      <span className="ml-2 text-xs text-gray-500 font-normal">
+                        (Não aplicável para exclusão)
+                      </span>
                     )}
                   </label>
                 </div>
-                {selectedLog.changedFields && selectedLog.changedFields.length > 0 ? (
+                {selectedLog.changedFields &&
+                selectedLog.changedFields.length > 0 ? (
                   <div className="space-y-3">
                     {selectedLog.changedFields.map((field, index) => (
-                      <div key={index} className="bg-white border border-gray-200 rounded-lg p-3">
+                      <div
+                        key={index}
+                        className="bg-white border border-gray-200 rounded-lg p-3"
+                      >
                         <div className="text-sm font-medium text-gray-900 mb-2 px-2 py-1 bg-blue-50 rounded border-l-4 border-l-blue-400">
                           {field.field}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
-                            <span className="text-xs text-gray-500 font-medium">Valor Anterior:</span>
+                            <span className="text-xs text-gray-500 font-medium">
+                              Valor Anterior:
+                            </span>
                             <div className="bg-gray-50 p-2 rounded border mt-1">
                               <pre className="text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap">
                                 {JSON.stringify(field.oldValue)}
@@ -766,7 +824,9 @@ export default function AuditoriaPage() {
                             </div>
                           </div>
                           <div>
-                            <span className="text-xs text-gray-500 font-medium">Novo Valor:</span>
+                            <span className="text-xs text-gray-500 font-medium">
+                              Novo Valor:
+                            </span>
                             <div className="bg-green-50 p-2 rounded border mt-1">
                               <pre className="text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap">
                                 {JSON.stringify(field.newValue)}
@@ -779,40 +839,46 @@ export default function AuditoriaPage() {
                   </div>
                 ) : (
                   <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-500 italic">
-                    {selectedLog.action === "CREATE" 
+                    {selectedLog.action === "CREATE"
                       ? "Todos os campos são novos (operação de criação)"
                       : selectedLog.action === "DELETE"
-                      ? "Nenhum campo alterado (operação de exclusão)"
-                      : "Nenhum campo foi alterado nesta operação"
-                    }
+                        ? "Nenhum campo alterado (operação de exclusão)"
+                        : "Nenhum campo foi alterado nesta operação"}
                   </div>
                 )}
               </div>
 
               {/* Metadados */}
-              {selectedLog.metadata && Object.keys(selectedLog.metadata).length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center mb-3">
-                    <TagIcon className="h-4 w-4 text-gray-500 mr-2" />
-                    <label className="text-sm font-medium text-gray-700">Metadados</label>
+              {selectedLog.metadata &&
+                Object.keys(selectedLog.metadata).length > 0 && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center mb-3">
+                      <TagIcon className="h-4 w-4 text-gray-500 mr-2" />
+                      <label className="text-sm font-medium text-gray-700">
+                        Metadados
+                      </label>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-3">
+                      <pre className="text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap">
+                        {JSON.stringify(selectedLog.metadata, null, 2)}
+                      </pre>
+                    </div>
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-lg p-3">
-                    <pre className="text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap">
-                      {JSON.stringify(selectedLog.metadata, null, 2)}
-                    </pre>
-                  </div>
-                </div>
-              )}
+                )}
 
               {/* Mensagem de Erro */}
               {selectedLog.errorMessage && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                   <div className="flex items-center mb-2">
                     <ExclamationTriangleIcon className="h-5 w-5 text-red-600 mr-2" />
-                    <label className="text-sm font-medium text-red-900">Mensagem de Erro</label>
+                    <label className="text-sm font-medium text-red-900">
+                      Mensagem de Erro
+                    </label>
                   </div>
                   <div className="bg-red-100 p-3 rounded-lg border border-red-200">
-                    <p className="text-sm text-red-800">{selectedLog.errorMessage}</p>
+                    <p className="text-sm text-red-800">
+                      {selectedLog.errorMessage}
+                    </p>
                   </div>
                 </div>
               )}

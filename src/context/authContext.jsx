@@ -1,5 +1,11 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 
 const AuthContext = createContext();
 
@@ -12,7 +18,7 @@ export function AuthProvider({ children }) {
   const validateStoredUser = (storedUser) => {
     try {
       const userData = JSON.parse(storedUser);
-      
+
       // Verificar se tem os campos obrigatórios
       if (!userData._id || !userData.email) {
         return null;
@@ -23,7 +29,7 @@ export function AuthProvider({ children }) {
         const loginTime = new Date(userData.loginTimestamp);
         const now = new Date();
         const hoursDiff = (now - loginTime) / (1000 * 60 * 60);
-        
+
         // Expirar sessão após 24 horas
         if (hoursDiff > 24) {
           localStorage.removeItem("user");
@@ -65,14 +71,14 @@ export function AuthProvider({ children }) {
       setLoading(true);
       try {
         const storedUser = localStorage.getItem("user");
-        
+
         if (storedUser) {
           const userData = validateStoredUser(storedUser);
-          
+
           if (userData) {
             // Verificar no servidor se o usuário ainda é válido
             const isValid = await verifyAuthOnServer(userData);
-            
+
             if (isValid) {
               setUser(userData);
             } else {
@@ -100,7 +106,7 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // Validações básicas
       if (!email || !password) {
@@ -115,9 +121,9 @@ export function AuthProvider({ children }) {
 
       const res = await fetch("/api/login", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json"
+          Accept: "application/json",
         },
         body: JSON.stringify({ email: email.toLowerCase().trim(), password }),
       });
@@ -128,18 +134,19 @@ export function AuthProvider({ children }) {
         // Adicionar timestamp de login para controle de expiração
         const userWithTimestamp = {
           ...data,
-          loginTimestamp: new Date().toISOString()
+          loginTimestamp: new Date().toISOString(),
         };
 
         setUser(userWithTimestamp);
         localStorage.setItem("user", JSON.stringify(userWithTimestamp));
-        
+
         // Limpar dados de lembrar login se existir
         localStorage.removeItem("prime-login");
-        
+
         return true;
       } else {
-        const errorMessage = data.message || data.error || "Usuário ou senha inválidos";
+        const errorMessage =
+          data.message || data.error || "Usuário ou senha inválidos";
         setError(errorMessage);
         return false;
       }
@@ -157,11 +164,11 @@ export function AuthProvider({ children }) {
     setError(null);
     localStorage.removeItem("user");
     localStorage.removeItem("prime-login");
-    
+
     // Opcional: notificar o servidor sobre logout
     fetch("/api/auth/logout", {
       method: "POST",
-      headers: { "Content-Type": "application/json" }
+      headers: { "Content-Type": "application/json" },
     }).catch(() => {
       // Ignorar erros de logout no servidor
     });
@@ -173,7 +180,7 @@ export function AuthProvider({ children }) {
 
     try {
       const isValid = await verifyAuthOnServer(user);
-      
+
       if (!isValid) {
         logout();
         return false;
@@ -191,24 +198,32 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!user) return;
 
-    const interval = setInterval(async () => {
-      await refreshUser();
-    }, 30 * 60 * 1000); // 30 minutos
+    const interval = setInterval(
+      async () => {
+        await refreshUser();
+      },
+      30 * 60 * 1000,
+    ); // 30 minutos
 
     return () => clearInterval(interval);
   }, [user]);
 
   // Função para verificar permissões
-  const hasPermission = useCallback((resource, action) => {
-    if (!user) return false;
-    
-    // Admin sempre tem todas as permissões
-    if (user.role === "admin") return true;
-    
-    // Verificar se tem permissão específica ou permissão de gerenciamento
-    return user.permissionsList?.includes(`${resource}:${action}`) || 
-           user.permissionsList?.includes(`${resource}:manage`);
-  }, [user]);
+  const hasPermission = useCallback(
+    (resource, action) => {
+      if (!user) return false;
+
+      // Admin sempre tem todas as permissões
+      if (user.role === "admin") return true;
+
+      // Verificar se tem permissão específica ou permissão de gerenciamento
+      return (
+        user.permissionsList?.includes(`${resource}:${action}`) ||
+        user.permissionsList?.includes(`${resource}:manage`)
+      );
+    },
+    [user],
+  );
 
   // Função para verificar se é admin
   const isAdmin = user?.role === "admin";
@@ -229,14 +244,10 @@ export function AuthProvider({ children }) {
     hasRole,
     role: user?.role || null,
     permissions: user?.permissions || [],
-    permissionsList: user?.permissionsList || []
+    permissionsList: user?.permissionsList || [],
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

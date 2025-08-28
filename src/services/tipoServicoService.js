@@ -5,8 +5,7 @@ export async function createTipoServico(data) {
 }
 
 export async function getTipoServicos() {
-  return await TipoServico.find()
-    .sort({ createdAt: -1 }); // Ordenação: data de criação (mais recente primeiro)
+  return await TipoServico.find().sort({ createdAt: -1 }); // Ordenação: data de criação (mais recente primeiro)
 }
 
 export async function getTipoServicoById(id) {

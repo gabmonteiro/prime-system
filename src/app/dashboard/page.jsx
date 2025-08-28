@@ -15,8 +15,6 @@ import {
   UsersIcon,
   CalendarIcon,
   WrenchScrewdriverIcon,
-  ClockIcon,
-  ExclamationTriangleIcon,
   BanknotesIcon,
   PlusIcon,
 } from "@heroicons/react/24/outline";
@@ -41,7 +39,11 @@ export default function DashboardPage() {
   // Novo estado para valor personalizado da distribuição
   const [valorDistribuicao, setValorDistribuicao] = useState("");
   const [isCriandoDespesa, setIsCriandoDespesa] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [toast, setToast] = useState({
+    show: false,
+    message: "",
+    type: "success",
+  });
   const [fiscalMonthStart, setFiscalMonthStart] = useState(17);
   const [isUpdatingConfig, setIsUpdatingConfig] = useState(false);
 
@@ -84,13 +86,19 @@ export default function DashboardPage() {
   async function loadDashboardData() {
     try {
       setIsLoading(true);
-      const [dashboardResponse, usuariosResponse, configResponse] = await Promise.all([
-        fetch("/api/dashboard"),
-        fetch("/api/user"),
-        fetch("/api/system-config")
-      ]);
-      
-      const { servicos, despesas, compras, carteira: carteiraBackend } = await dashboardResponse.json();
+      const [dashboardResponse, usuariosResponse, configResponse] =
+        await Promise.all([
+          fetch("/api/dashboard"),
+          fetch("/api/user?forSelection=true"),
+          fetch("/api/system-config"),
+        ]);
+
+      const {
+        servicos,
+        despesas,
+        compras,
+        carteira: carteiraBackend,
+      } = await dashboardResponse.json();
       const usuariosData = await usuariosResponse.json();
       const configData = await configResponse.json();
 
@@ -98,7 +106,7 @@ export default function DashboardPage() {
       setDespesas(despesas || []);
       setCompras(compras || []);
       setUsuarios(Array.isArray(usuariosData) ? usuariosData : []);
-      
+
       // Usar o valor da carteira calculado pelo backend
       if (carteiraBackend !== undefined) {
         setCarteira(carteiraBackend);
@@ -114,7 +122,10 @@ export default function DashboardPage() {
                 : 0),
           0,
         );
-        const totalDesp = despesas.reduce((acc, d) => acc + (Number(d.valor) || 0), 0);
+        const totalDesp = despesas.reduce(
+          (acc, d) => acc + (Number(d.valor) || 0),
+          0,
+        );
         setCarteira(totalServ - totalDesp);
       }
       setFiscalMonthStart(configData.fiscalMonthStart || 17);
@@ -145,6 +156,16 @@ export default function DashboardPage() {
       });
 
       const mesesArr = Array.from(mesesSet).sort();
+
+      // Garantir que o mês atual esteja sempre disponível
+      const now = new Date();
+      const currentMonthKey = getMonthKey(now.toISOString());
+      if (currentMonthKey && !mesesArr.includes(currentMonthKey)) {
+        mesesArr.push(currentMonthKey);
+        mesesArr.sort();
+      }
+
+      console.log("📅 Meses disponíveis:", mesesArr); // Debug
       setMeses(mesesArr);
       setSelectedMes(mesesArr.length > 0 ? mesesArr[mesesArr.length - 1] : "");
       setDadosServicosDia(servDia);
@@ -154,7 +175,6 @@ export default function DashboardPage() {
       if (selectedMes && Object.keys(dadosServicosDia).length > 0) {
         renderCharts();
       }
-      
     } catch (error) {
       console.error("Erro ao carregar dados do dashboard:", error);
     } finally {
@@ -165,7 +185,7 @@ export default function DashboardPage() {
   // Função para atualizar configuração do mês fiscal
   async function updateFiscalMonthConfig() {
     if (isUpdatingConfig) return;
-    
+
     setIsUpdatingConfig(true);
     try {
       const response = await fetch("/api/system-config", {
@@ -183,30 +203,32 @@ export default function DashboardPage() {
         throw new Error("Erro ao atualizar configuração");
       }
 
-      setToast({ 
-        show: true, 
-        message: "Configuração do mês fiscal atualizada com sucesso!", 
-        type: "success" 
+      setToast({
+        show: true,
+        message: "Configuração do mês fiscal atualizada com sucesso!",
+        type: "success",
       });
-      
+
       // Recarregar dados do dashboard para aplicar a nova configuração
       await loadDashboardData();
-      
+
       // Forçar recriação dos gráficos com a nova configuração
       if (selectedMes && Object.keys(dadosServicosDia).length > 0) {
         renderCharts();
       }
-      
     } catch (error) {
       console.error("Erro ao atualizar configuração:", error);
-      setToast({ 
-        show: true, 
-        message: "Erro ao atualizar configuração do mês fiscal", 
-        type: "error" 
+      setToast({
+        show: true,
+        message: "Erro ao atualizar configuração do mês fiscal",
+        type: "error",
       });
     } finally {
       setIsUpdatingConfig(false);
-      setTimeout(() => setToast({ show: false, message: "", type: "success" }), 4000);
+      setTimeout(
+        () => setToast({ show: false, message: "", type: "success" }),
+        4000,
+      );
     }
   }
 
@@ -346,16 +368,18 @@ export default function DashboardPage() {
   const despesasDoMes = despesas.filter(
     (d) => getMonthKey(d.data) === selectedMes,
   );
-  const totalReceita = servicosDoMes.reduce(
-    (acc, s) =>
-      acc +
-      (s.valorPersonalizado
-        ? Number(s.valorPersonalizado)
-        : s.tipoServico?.valor
-          ? Number(s.tipoServico.valor)
-          : 0),
-    0,
-  );
+  const totalReceita = servicosDoMes
+    .filter((s) => s.pago === true)
+    .reduce(
+      (acc, s) =>
+        acc +
+        (s.valorPersonalizado
+          ? Number(s.valorPersonalizado)
+          : s.tipoServico?.valor
+            ? Number(s.tipoServico.valor)
+            : 0),
+      0,
+    );
   const totalDespesas = despesasDoMes.reduce(
     (acc, d) => acc + (Number(d.valor) || 0),
     0,
@@ -388,15 +412,15 @@ export default function DashboardPage() {
     try {
       const nomes = Object.keys(valoresDistribuidos);
       const descricao = nomes
-        .map(
-          (participanteId) => {
-            const usuario = usuarios.find(u => u._id === participanteId);
-            const nome = usuario ? usuario.name : participanteId;
-            return `${nome}: R$ ${valoresDistribuidos[participanteId].toLocaleString("pt-BR", {
-              minimumFractionDigits: 2,
-            })}`;
-          }
-        )
+        .map((participanteId) => {
+          const usuario = usuarios.find((u) => u._id === participanteId);
+          const nome = usuario ? usuario.name : participanteId;
+          return `${nome}: R$ ${valoresDistribuidos[
+            participanteId
+          ].toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+          })}`;
+        })
         .join(" | ");
       const payload = {
         nome: "Retirada de dinheiro",
@@ -411,14 +435,25 @@ export default function DashboardPage() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Erro ao criar despesa");
-      setToast({ show: true, message: "Despesa de retirada criada!", type: "success" });
+      setToast({
+        show: true,
+        message: "Despesa de retirada criada!",
+        type: "success",
+      });
       // Atualiza os dados do dashboard após criar a despesa
       await loadDashboardData();
     } catch (e) {
-      setToast({ show: true, message: "Erro ao criar despesa de retirada", type: "error" });
+      setToast({
+        show: true,
+        message: "Erro ao criar despesa de retirada",
+        type: "error",
+      });
     } finally {
       setIsCriandoDespesa(false);
-      setTimeout(() => setToast({ show: false, message: "", type: "success" }), 4000);
+      setTimeout(
+        () => setToast({ show: false, message: "", type: "success" }),
+        4000,
+      );
     }
   }
 
@@ -435,7 +470,9 @@ export default function DashboardPage() {
             <div className="flex items-center">
               <span className="flex-1">{toast.message}</span>
               <button
-                onClick={() => setToast({ show: false, message: "", type: "success" })}
+                onClick={() =>
+                  setToast({ show: false, message: "", type: "success" })
+                }
                 className="ml-2 text-white hover:text-gray-200"
               >
                 ×
@@ -602,7 +639,9 @@ export default function DashboardPage() {
                       >
                         {meses.map((mes) => (
                           <option key={mes} value={mes}>
-                            {new Date(`${mes}-${fiscalMonthStart}`).toLocaleDateString("pt-BR", {
+                            {new Date(
+                              `${mes}-${fiscalMonthStart}`,
+                            ).toLocaleDateString("pt-BR", {
                               year: "numeric",
                               month: "long",
                             })}
@@ -743,7 +782,10 @@ export default function DashboardPage() {
                 </div>
                 {/* Campo para valor personalizado */}
                 <div className="mb-6 flex items-center gap-2">
-                  <label htmlFor="valor-distribuicao" className="text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="valor-distribuicao"
+                    className="text-sm font-medium text-gray-700"
+                  >
                     Valor personalizado para simulação:
                   </label>
                   <input
@@ -752,7 +794,7 @@ export default function DashboardPage() {
                     min="0"
                     step="0.01"
                     value={valorDistribuicao}
-                    onChange={e => setValorDistribuicao(e.target.value)}
+                    onChange={(e) => setValorDistribuicao(e.target.value)}
                     placeholder="Ex: 1000.00"
                     className="px-2 py-1 border border-gray-300 rounded-md w-32 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                   />
@@ -763,11 +805,11 @@ export default function DashboardPage() {
                     const valoresParticipantes = {};
                     // Verificar se usuarios é um array válido
                     if (Array.isArray(usuarios)) {
-                      usuarios.forEach(usuario => {
+                      usuarios.forEach((usuario) => {
                         valoresParticipantes[usuario._id] = 0;
                       });
                     }
-                    
+
                     // Verificar se servicosDoMes é um array válido
                     if (Array.isArray(servicosDoMes)) {
                       servicosDoMes.forEach((s) => {
@@ -783,19 +825,32 @@ export default function DashboardPage() {
                           const valorPorParticipante =
                             valorServico / participantes.length;
                           participantes.forEach((participante) => {
-                            const participanteId = typeof participante === 'object' ? participante._id : participante;
-                            if (valoresParticipantes.hasOwnProperty(participanteId)) {
-                              valoresParticipantes[participanteId] += valorPorParticipante;
+                            const participanteId =
+                              typeof participante === "object"
+                                ? participante._id
+                                : participante;
+                            if (
+                              valoresParticipantes.hasOwnProperty(
+                                participanteId,
+                              )
+                            ) {
+                              valoresParticipantes[participanteId] +=
+                                valorPorParticipante;
                             }
                           });
                         }
                       });
                     }
-                    
-                    const somaValores = Object.values(valoresParticipantes).reduce((acc, v) => acc + v, 0);
+
+                    const somaValores = Object.values(
+                      valoresParticipantes,
+                    ).reduce((acc, v) => acc + v, 0);
                     // Calcula os valores distribuídos para o botão
                     let valorTotal = carteira;
-                    if (valorDistribuicao && !isNaN(Number(valorDistribuicao))) {
+                    if (
+                      valorDistribuicao &&
+                      !isNaN(Number(valorDistribuicao))
+                    ) {
                       valorTotal = Number(valorDistribuicao);
                     }
                     const valoresDistribuidos = {};
@@ -804,23 +859,37 @@ export default function DashboardPage() {
                       usuarios.forEach((usuario) => {
                         valoresDistribuidos[usuario._id] =
                           somaValores > 0
-                            ? valorTotal * (valoresParticipantes[usuario._id] / somaValores)
+                            ? valorTotal *
+                              (valoresParticipantes[usuario._id] / somaValores)
                             : 0;
                       });
                     }
-                    
+
                     // Renderização dos cards
                     return usuarios.map((usuario, index) => {
-                      const valor = somaValores > 0 ? carteira * (valoresParticipantes[usuario._id] / somaValores) : 0;
-                      const percentage = somaValores > 0 ? (valoresParticipantes[usuario._id] / somaValores) * 100 : 0;
+                      const valor =
+                        somaValores > 0
+                          ? carteira *
+                            (valoresParticipantes[usuario._id] / somaValores)
+                          : 0;
+                      const percentage =
+                        somaValores > 0
+                          ? (valoresParticipantes[usuario._id] / somaValores) *
+                            100
+                          : 0;
                       const count = servicosDoMes.filter(
-                        (s) => Array.isArray(s.participantes) && s.participantes.some(p => 
-                          (typeof p === 'object' ? p._id : p) === usuario._id
-                        )
+                        (s) =>
+                          Array.isArray(s.participantes) &&
+                          s.participantes.some(
+                            (p) =>
+                              (typeof p === "object" ? p._id : p) ===
+                              usuario._id,
+                          ),
                       ).length;
                       const valorPersonalizadoDistribuicao =
                         somaValores > 0 && valorDistribuicao
-                          ? Number(valorDistribuicao) * (valoresParticipantes[usuario._id] / somaValores)
+                          ? Number(valorDistribuicao) *
+                            (valoresParticipantes[usuario._id] / somaValores)
                           : 0;
                       const colors = [
                         "bg-blue-100 text-blue-600",
@@ -839,24 +908,44 @@ export default function DashboardPage() {
                         "bg-indigo-500",
                       ];
                       return (
-                        <div key={usuario._id} className="flex items-center gap-4 py-2">
-                          <div className={`w-10 h-10 ${colors[index % colors.length].split(' ')[0]} rounded-lg flex items-center justify-center`}>
-                            <UsersIcon className={`w-5 h-5 ${colors[index % colors.length].split(' ')[1]}`} />
+                        <div
+                          key={usuario._id}
+                          className="flex items-center gap-4 py-2"
+                        >
+                          <div
+                            className={`w-10 h-10 ${colors[index % colors.length].split(" ")[0]} rounded-lg flex items-center justify-center`}
+                          >
+                            <UsersIcon
+                              className={`w-5 h-5 ${colors[index % colors.length].split(" ")[1]}`}
+                            />
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="font-medium text-gray-900">{usuario.name}</span>
-                              <span className="text-xs text-gray-500">{count} serviços</span>
+                              <span className="font-medium text-gray-900">
+                                {usuario.name}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {count} serviços
+                              </span>
                               <span className="text-xs font-semibold text-gray-700">
-                                R$ {valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                R${" "}
+                                {valor.toLocaleString("pt-BR", {
+                                  minimumFractionDigits: 2,
+                                })}
                               </span>
                             </div>
                             {/* Valor personalizado distribuído */}
                             {valorDistribuicao && (
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs text-gray-500">Valor personalizado:</span>
+                                <span className="text-xs text-gray-500">
+                                  Valor personalizado:
+                                </span>
                                 <span className="text-xs font-semibold text-blue-700">
-                                  R$ {valorPersonalizadoDistribuicao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                  R${" "}
+                                  {valorPersonalizadoDistribuicao.toLocaleString(
+                                    "pt-BR",
+                                    { minimumFractionDigits: 2 },
+                                  )}
                                 </span>
                               </div>
                             )}
@@ -867,7 +956,9 @@ export default function DashboardPage() {
                               ></div>
                             </div>
                           </div>
-                          <span className="ml-2 text-xs text-gray-500 w-10 text-right">{Math.round(percentage)}%</span>
+                          <span className="ml-2 text-xs text-gray-500 w-10 text-right">
+                            {Math.round(percentage)}%
+                          </span>
                         </div>
                       );
                     });
@@ -884,11 +975,11 @@ export default function DashboardPage() {
                       const valoresParticipantes = {};
                       // Verificar se usuarios é um array válido
                       if (Array.isArray(usuarios)) {
-                        usuarios.forEach(usuario => {
+                        usuarios.forEach((usuario) => {
                           valoresParticipantes[usuario._id] = 0;
                         });
                       }
-                      
+
                       // Verificar se servicosDoMes é um array válido
                       if (Array.isArray(servicosDoMes)) {
                         servicosDoMes.forEach((s) => {
@@ -904,28 +995,43 @@ export default function DashboardPage() {
                             const valorPorParticipante =
                               valorServico / participantes.length;
                             participantes.forEach((participante) => {
-                              const participanteId = typeof participante === 'object' ? participante._id : participante;
-                              if (valoresParticipantes.hasOwnProperty(participanteId)) {
-                                valoresParticipantes[participanteId] += valorPorParticipante;
+                              const participanteId =
+                                typeof participante === "object"
+                                  ? participante._id
+                                  : participante;
+                              if (
+                                valoresParticipantes.hasOwnProperty(
+                                  participanteId,
+                                )
+                              ) {
+                                valoresParticipantes[participanteId] +=
+                                  valorPorParticipante;
                               }
                             });
                           }
                         });
                       }
-                      
-                      const somaValores = Object.values(valoresParticipantes).reduce((acc, v) => acc + v, 0);
+
+                      const somaValores = Object.values(
+                        valoresParticipantes,
+                      ).reduce((acc, v) => acc + v, 0);
                       let valorTotal = carteira;
-                      if (valorDistribuicao && !isNaN(Number(valorDistribuicao))) {
+                      if (
+                        valorDistribuicao &&
+                        !isNaN(Number(valorDistribuicao))
+                      ) {
                         valorTotal = Number(valorDistribuicao);
                       }
                       const valoresDistribuidos = {};
-                      
+
                       // Verificar se usuarios é um array válido antes de usar forEach
                       if (Array.isArray(usuarios)) {
                         usuarios.forEach((usuario) => {
                           valoresDistribuidos[usuario._id] =
                             somaValores > 0
-                              ? valorTotal * (valoresParticipantes[usuario._id] / somaValores)
+                              ? valorTotal *
+                                (valoresParticipantes[usuario._id] /
+                                  somaValores)
                               : 0;
                         });
                       }
@@ -981,7 +1087,9 @@ export default function DashboardPage() {
                               })}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {new Date(servico.data).toLocaleDateString("pt-BR")}
+                              {new Date(servico.data).toLocaleDateString(
+                                "pt-BR",
+                              )}
                             </p>
                           </div>
                         </div>
@@ -1028,7 +1136,9 @@ export default function DashboardPage() {
                               })}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {new Date(despesa.data).toLocaleDateString("pt-BR")}
+                              {new Date(despesa.data).toLocaleDateString(
+                                "pt-BR",
+                              )}
                             </p>
                           </div>
                         </div>
@@ -1053,23 +1163,42 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <svg
+                      className="w-6 h-6 text-gray-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
                     </svg>
                   </div>
                 </div>
-                
+
                 <div className="space-y-6">
                   {/* Configuração do Mês Fiscal */}
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
-                      <h4 className="font-medium text-gray-900">Dia de Início do Mês Fiscal</h4>
+                      <h4 className="font-medium text-gray-900">
+                        Dia de Início do Mês Fiscal
+                      </h4>
                       <p className="text-sm text-gray-600">
-                        Define quando o mês fiscal começa. Atualmente: dia {fiscalMonthStart}
+                        Define quando o mês fiscal começa. Atualmente: dia{" "}
+                        {fiscalMonthStart}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Ex: Se configurado para dia 15, o mês fiscal vai do dia 15 ao dia 14 do mês seguinte
+                        Ex: Se configurado para dia 15, o mês fiscal vai do dia
+                        15 ao dia 14 do mês seguinte
                       </p>
                     </div>
                     <div className="flex items-center space-x-3">
@@ -1078,7 +1207,9 @@ export default function DashboardPage() {
                         min="1"
                         max="31"
                         value={fiscalMonthStart}
-                        onChange={(e) => setFiscalMonthStart(parseInt(e.target.value) || 1)}
+                        onChange={(e) =>
+                          setFiscalMonthStart(parseInt(e.target.value) || 1)
+                        }
                         className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
                       />
                       <button

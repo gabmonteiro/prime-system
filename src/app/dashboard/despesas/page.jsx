@@ -71,26 +71,25 @@ export default function DespesasPage() {
       setIsLoading(true);
       const [response, configResponse] = await Promise.all([
         fetch(`/api/despesa?page=${page}&limit=${limit}`),
-        fetch("/api/system-config")
+        fetch("/api/system-config"),
       ]);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
       const configData = await configResponse.json();
-      
+
       // CORRIGIDO: Adaptando para a nova estrutura da resposta
       console.log("API Response:", result); // Para debug
-      
+
       // A nova estrutura retorna: { data, pagination: { total, page, totalPages, ... }, sortInfo }
       setDespesas(Array.isArray(result.data) ? result.data : []);
       setTotalPages(result.pagination?.totalPages || 1);
       setTotalItems(result.pagination?.total || 0);
       setCurrentPage(result.pagination?.page || page);
       setFiscalMonthStart(configData.fiscalMonthStart || 17);
-      
     } catch (error) {
       console.error("Erro ao carregar despesas:", error);
       setDespesas([]);
@@ -175,7 +174,7 @@ export default function DespesasPage() {
         await fetch("/api/despesa", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             id,
             // Adicionar informações do usuário para auditoria
             userId: user?._id || "system",
@@ -292,13 +291,15 @@ export default function DespesasPage() {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={openModal}
-                className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Nova Despesa
-              </button>
+              {user.role !== "visualizador" && (
+                <button
+                  onClick={openModal}
+                  className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <PlusIcon className="h-5 w-5 mr-2" />
+                  Nova Despesa
+                </button>
+              )}
             </div>
           </div>
 
@@ -387,15 +388,20 @@ export default function DespesasPage() {
                     {sortedDespesas.map((despesa, idx) => {
                       const prev = sortedDespesas[idx - 1];
                       const currFiscalMonth = getFiscalMonth(despesa.data);
-                      const prevFiscalMonth = prev ? getFiscalMonth(prev.data) : null;
-                      const showDivider = idx === 0 || currFiscalMonth !== prevFiscalMonth;
+                      const prevFiscalMonth = prev
+                        ? getFiscalMonth(prev.data)
+                        : null;
+                      const showDivider =
+                        idx === 0 || currFiscalMonth !== prevFiscalMonth;
                       return (
                         <React.Fragment key={despesa._id}>
                           {showDivider && (
                             <div className="my-4 flex items-center">
                               <div className="flex-1 border-t border-gray-300"></div>
                               <span className="mx-4 text-xs font-semibold text-gray-500">
-                                {new Date(`${currFiscalMonth}-17`).toLocaleDateString("pt-BR", {
+                                {new Date(
+                                  `${currFiscalMonth}-17`,
+                                ).toLocaleDateString("pt-BR", {
                                   year: "numeric",
                                   month: "long",
                                 })}
@@ -403,9 +409,7 @@ export default function DespesasPage() {
                               <div className="flex-1 border-t border-gray-300"></div>
                             </div>
                           )}
-                          <div
-                            className="bg-gray-50 rounded-lg shadow-md border border-gray-200 p-4"
-                          >
+                          <div className="bg-gray-50 rounded-lg shadow-md border border-gray-200 p-4">
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex items-center space-x-3">
                                 <div
@@ -445,9 +449,12 @@ export default function DespesasPage() {
                                   }`}
                                 >
                                   R${" "}
-                                  {Number(despesa.valor).toLocaleString("pt-BR", {
-                                    minimumFractionDigits: 2,
-                                  })}
+                                  {Number(despesa.valor).toLocaleString(
+                                    "pt-BR",
+                                    {
+                                      minimumFractionDigits: 2,
+                                    },
+                                  )}
                                 </div>
                                 <div className="text-xs text-gray-500 mt-1">
                                   {new Date(despesa.data).toLocaleDateString(
@@ -456,22 +463,24 @@ export default function DespesasPage() {
                                 </div>
                               </div>
                             </div>
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => handleEdit(despesa)}
-                                className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
-                              >
-                                <PencilIcon className="h-4 w-4 mr-1" />
-                                Editar
-                              </button>
-                              <button
-                                onClick={() => handleDelete(despesa._id)}
-                                className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
-                              >
-                                <TrashIcon className="h-4 w-4 mr-1" />
-                                Excluir
-                              </button>
-                            </div>
+                            {user.role !== "visualizador" && (
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleEdit(despesa)}
+                                  className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
+                                >
+                                  <PencilIcon className="h-4 w-4 mr-1" />
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(despesa._id)}
+                                  className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
+                                >
+                                  <TrashIcon className="h-4 w-4 mr-1" />
+                                  Excluir
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </React.Fragment>
                       );
@@ -496,17 +505,22 @@ export default function DespesasPage() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Data
                         </th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Ações
-                        </th>
+                        {user.role !== "visualizador" && (
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ações
+                          </th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {sortedDespesas.map((despesa, idx) => {
                         const prev = sortedDespesas[idx - 1];
                         const currFiscalMonth = getFiscalMonth(despesa.data);
-                        const prevFiscalMonth = prev ? getFiscalMonth(prev.data) : null;
-                        const showDivider = idx === 0 || currFiscalMonth !== prevFiscalMonth;
+                        const prevFiscalMonth = prev
+                          ? getFiscalMonth(prev.data)
+                          : null;
+                        const showDivider =
+                          idx === 0 || currFiscalMonth !== prevFiscalMonth;
                         return (
                           <React.Fragment key={despesa._id}>
                             {showDivider && (
@@ -515,7 +529,9 @@ export default function DespesasPage() {
                                   <div className="flex items-center">
                                     <div className="flex-1 border-t border-gray-300"></div>
                                     <span className="mx-4 text-xs font-semibold text-gray-500">
-                                      {new Date(`${currFiscalMonth}-17`).toLocaleDateString("pt-BR", {
+                                      {new Date(
+                                        `${currFiscalMonth}-17`,
+                                      ).toLocaleDateString("pt-BR", {
                                         year: "numeric",
                                         month: "long",
                                       })}
@@ -560,7 +576,9 @@ export default function DespesasPage() {
                                   }`}
                                 >
                                   <TagIcon className="h-3 w-3 mr-1" />
-                                  {despesa.tipo === "gasto" ? "Gasto" : "Compra"}
+                                  {despesa.tipo === "gasto"
+                                    ? "Gasto"
+                                    : "Compra"}
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
@@ -572,9 +590,12 @@ export default function DespesasPage() {
                                   }`}
                                 >
                                   R${" "}
-                                  {Number(despesa.valor).toLocaleString("pt-BR", {
-                                    minimumFractionDigits: 2,
-                                  })}
+                                  {Number(despesa.valor).toLocaleString(
+                                    "pt-BR",
+                                    {
+                                      minimumFractionDigits: 2,
+                                    },
+                                  )}
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
@@ -584,24 +605,26 @@ export default function DespesasPage() {
                                   )}
                                 </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div className="flex items-center justify-end space-x-2">
-                                  <button
-                                    onClick={() => handleEdit(despesa)}
-                                    className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
-                                    title="Editar despesa"
-                                  >
-                                    <PencilIcon className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDelete(despesa._id)}
-                                    className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
-                                    title="Excluir despesa"
-                                  >
-                                    <TrashIcon className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </td>
+                              {user.role !== "visualizador" ? (
+                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                  <div className="flex items-center justify-end space-x-2">
+                                    <button
+                                      onClick={() => handleEdit(despesa)}
+                                      className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
+                                      title="Editar despesa"
+                                    >
+                                      <PencilIcon className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(despesa._id)}
+                                      className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
+                                      title="Excluir despesa"
+                                    >
+                                      <TrashIcon className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </td>
+                              ) : null}
                             </tr>
                           </React.Fragment>
                         );
@@ -684,7 +707,9 @@ export default function DespesasPage() {
                 <CustomSelect
                   id="tipo"
                   value={form.tipo}
-                  onChange={(val) => handleFormChange({ target: { name: "tipo", value: val } })}
+                  onChange={(val) =>
+                    handleFormChange({ target: { name: "tipo", value: val } })
+                  }
                   options={[
                     { value: "gasto", label: "Gasto" },
                     { value: "compra", label: "Compra" },
@@ -702,7 +727,9 @@ export default function DespesasPage() {
                 <DatePicker
                   id="data"
                   value={form.data}
-                  onChange={(val) => handleFormChange({ target: { name: "data", value: val } })}
+                  onChange={(val) =>
+                    handleFormChange({ target: { name: "data", value: val } })
+                  }
                   className=""
                   required
                 />

@@ -30,7 +30,10 @@ async function connectDB() {
 
     // Se a conexão está em estado ruim, limpa o cache
     if (cached.conn && cached.conn.connection.readyState !== 1) {
-      console.warn("⚠️ Limpando conexão inativa. ReadyState:", cached.conn.connection.readyState);
+      console.warn(
+        "⚠️ Limpando conexão inativa. ReadyState:",
+        cached.conn.connection.readyState,
+      );
       cached.conn = null;
       cached.promise = null;
     }
@@ -51,18 +54,23 @@ async function connectDB() {
       };
 
       console.log("🔄 Conectando ao MongoDB...");
-      
-      cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-        console.log("✅ MongoDB conectado com sucesso!");
-        console.log(`📊 Estado da conexão: ${mongoose.connection.readyState}`);
-        console.log(`🏠 Host: ${mongoose.connection.host}`);
-        console.log(`🗃️  Database: ${mongoose.connection.name}`);
-        return mongoose;
-      }).catch((error) => {
-        console.error("❌ Erro ao conectar ao MongoDB:", error);
-        cached.promise = null;
-        throw new Error(`Falha na conexão MongoDB: ${error.message}`);
-      });
+
+      cached.promise = mongoose
+        .connect(MONGODB_URI, opts)
+        .then((mongoose) => {
+          console.log("✅ MongoDB conectado com sucesso!");
+          console.log(
+            `📊 Estado da conexão: ${mongoose.connection.readyState}`,
+          );
+          console.log(`🏠 Host: ${mongoose.connection.host}`);
+          console.log(`🗃️  Database: ${mongoose.connection.name}`);
+          return mongoose;
+        })
+        .catch((error) => {
+          console.error("❌ Erro ao conectar ao MongoDB:", error);
+          cached.promise = null;
+          throw new Error(`Falha na conexão MongoDB: ${error.message}`);
+        });
     }
 
     // Aguarda a conexão
@@ -77,7 +85,6 @@ async function connectDB() {
     }
 
     return cached.conn;
-
   } catch (error) {
     console.error("❌ Erro crítico na conexão MongoDB:", error);
     cached.conn = null;
@@ -87,16 +94,16 @@ async function connectDB() {
 }
 
 // Adicionar listeners para monitorar a conexão
-mongoose.connection.on('connected', () => {
-  console.log('🔗 Mongoose conectado ao MongoDB');
+mongoose.connection.on("connected", () => {
+  console.log("🔗 Mongoose conectado ao MongoDB");
 });
 
-mongoose.connection.on('error', (err) => {
-  console.error('❌ Erro na conexão Mongoose:', err);
+mongoose.connection.on("error", (err) => {
+  console.error("❌ Erro na conexão Mongoose:", err);
 });
 
-mongoose.connection.on('disconnected', () => {
-  console.log('🔌 Mongoose desconectado do MongoDB');
+mongoose.connection.on("disconnected", () => {
+  console.log("🔌 Mongoose desconectado do MongoDB");
   // Limpar cache quando desconectar
   if (cached) {
     cached.conn = null;
@@ -105,13 +112,13 @@ mongoose.connection.on('disconnected', () => {
 });
 
 // Graceful shutdown
-process.on('SIGINT', async () => {
+process.on("SIGINT", async () => {
   try {
     await mongoose.connection.close();
-    console.log('🛑 Conexão MongoDB fechada devido ao término da aplicação');
+    console.log("🛑 Conexão MongoDB fechada devido ao término da aplicação");
     process.exit(0);
   } catch (error) {
-    console.error('❌ Erro ao fechar conexão MongoDB:', error);
+    console.error("❌ Erro ao fechar conexão MongoDB:", error);
     process.exit(1);
   }
 });

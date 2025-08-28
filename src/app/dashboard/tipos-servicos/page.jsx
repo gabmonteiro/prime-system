@@ -132,12 +132,14 @@ export default function TiposServicosPage() {
   }
 
   async function handleDelete(id) {
-    if (window.confirm("Tem certeza que deseja excluir este tipo de serviço?")) {
+    if (
+      window.confirm("Tem certeza que deseja excluir este tipo de serviço?")
+    ) {
       try {
         await fetch("/api/tipoServico", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             id,
             // Adicionar informações do usuário para auditoria
             userId: user?._id || "system",
@@ -168,7 +170,10 @@ export default function TiposServicosPage() {
   // Paginação
   const totalPages = Math.ceil(tiposServicos.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentTipos = tiposServicos.slice(startIndex, startIndex + itemsPerPage);
+  const currentTipos = tiposServicos.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
 
   if (!user) {
     return (
@@ -224,15 +229,17 @@ export default function TiposServicosPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  onClick={openModal}
-                  className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <PlusIcon className="h-5 w-5 mr-2" />
-                  Novo Tipo
-                </button>
-              </div>
+              {user.role !== "visualizador" && (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    onClick={openModal}
+                    className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Novo Tipo
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -242,7 +249,9 @@ export default function TiposServicosPage() {
               <div className="flex items-center justify-center h-64">
                 <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-gray-600">Carregando tipos de serviços...</span>
+                  <span className="text-gray-600">
+                    Carregando tipos de serviços...
+                  </span>
                 </div>
               </div>
             ) : tiposServicos.length === 0 ? (
@@ -260,51 +269,55 @@ export default function TiposServicosPage() {
                 {/* Mobile Card View */}
                 <div className="block lg:hidden">
                   <div className="p-4 space-y-4">
-                    {Array.isArray(currentTipos) && currentTipos.map((tipo) => (
-                      <div
-                        key={tipo._id}
-                        className="bg-gray-50 rounded-lg shadow-md border border-gray-200 p-4"
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-blue-100 rounded-full">
-                              <WrenchScrewdriverIcon className="h-4 w-4 text-blue-600" />
-                            </div>
-                            <div>
-                              <h3 className="font-medium text-gray-900">
-                                {tipo.nome}
-                              </h3>
-                              <p className="text-sm font-medium text-green-600 mt-1">
-                                R$ {tipo.valor.toLocaleString("pt-BR", {
-                                  minimumFractionDigits: 2,
-                                })}
-                              </p>
-                              {tipo.desc && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {tipo.desc}
+                    {Array.isArray(currentTipos) &&
+                      currentTipos.map((tipo) => (
+                        <div
+                          key={tipo._id}
+                          className="bg-gray-50 rounded-lg shadow-md border border-gray-200 p-4"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center space-x-3">
+                              <div className="p-2 bg-blue-100 rounded-full">
+                                <WrenchScrewdriverIcon className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <div>
+                                <h3 className="font-medium text-gray-900">
+                                  {tipo.nome}
+                                </h3>
+                                <p className="text-sm font-medium text-green-600 mt-1">
+                                  R${" "}
+                                  {tipo.valor.toLocaleString("pt-BR", {
+                                    minimumFractionDigits: 2,
+                                  })}
                                 </p>
-                              )}
+                                {tipo.desc && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {tipo.desc}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </div>
+                          {user.role !== "visualizador" && (
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleEdit(tipo)}
+                                className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
+                              >
+                                <PencilIcon className="h-4 w-4 mr-1" />
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => handleDelete(tipo._id)}
+                                className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
+                              >
+                                <TrashIcon className="h-4 w-4 mr-1" />
+                                Excluir
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEdit(tipo)}
-                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
-                          >
-                            <PencilIcon className="h-4 w-4 mr-1" />
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => handleDelete(tipo._id)}
-                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
-                          >
-                            <TrashIcon className="h-4 w-4 mr-1" />
-                            Excluir
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 </div>
 
@@ -322,60 +335,66 @@ export default function TiposServicosPage() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Descrição
                         </th>
-                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Ações
-                        </th>
+                        {user.role !== "visualizador" && (
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ações
+                          </th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {Array.isArray(currentTipos) && currentTipos.map((tipo) => (
-                        <tr key={tipo._id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-8 w-8">
-                                <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                  <WrenchScrewdriverIcon className="h-4 w-4 text-blue-600" />
+                      {Array.isArray(currentTipos) &&
+                        currentTipos.map((tipo) => (
+                          <tr key={tipo._id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-8 w-8">
+                                  <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <WrenchScrewdriverIcon className="h-4 w-4 text-blue-600" />
+                                  </div>
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {tipo.nome}
+                                  </div>
                                 </div>
                               </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {tipo.nome}
-                                </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-green-600">
+                                R${" "}
+                                {tipo.valor.toLocaleString("pt-BR", {
+                                  minimumFractionDigits: 2,
+                                })}
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-green-600">
-                              R$ {tipo.valor.toLocaleString("pt-BR", {
-                                minimumFractionDigits: 2,
-                              })}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-gray-600 max-w-xs truncate">
-                              {tipo.desc || "Sem descrição"}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                            <div className="flex items-center justify-center space-x-2">
-                              <button
-                                onClick={() => handleEdit(tipo)}
-                                className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full hover:bg-blue-200 transition-colors"
-                              >
-                                <PencilIcon className="h-3 w-3 mr-1" />
-                                Editar
-                              </button>
-                              <button
-                                onClick={() => handleDelete(tipo._id)}
-                                className="inline-flex items-center px-3 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full hover:bg-red-200 transition-colors"
-                              >
-                                <TrashIcon className="h-3 w-3 mr-1" />
-                                Excluir
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm text-gray-600 max-w-xs truncate">
+                                {tipo.desc || "Sem descrição"}
+                              </div>
+                            </td>
+                            {user.role !== "visualizador" ? (
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div className="flex items-center justify-end space-x-2">
+                                  <button
+                                    onClick={() => handleEdit(tipo)}
+                                    className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
+                                    title="Editar tipo de serviço"
+                                  >
+                                    <PencilIcon className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(tipo._id)}
+                                    className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
+                                    title="Excluir tipo de serviço"
+                                  >
+                                    <TrashIcon className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            ) : null}
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>

@@ -14,24 +14,24 @@ import { UserService } from "../../../services/userService.js";
 async function getCurrentUser(request) {
   try {
     const cookieHeader = request.headers.get("cookie");
-    
+
     if (!cookieHeader) {
       return null;
     }
-    
+
     // Extrair o userId do cookie 'user'
-    const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
-      const [key, value] = cookie.trim().split('=');
+    const cookies = cookieHeader.split(";").reduce((acc, cookie) => {
+      const [key, value] = cookie.trim().split("=");
       acc[key] = value;
       return acc;
     }, {});
-    
+
     const userId = cookies.user;
-    
+
     if (!userId) {
       return null;
     }
-    
+
     // Buscar usuário no banco
     const user = await UserService.getUserById(userId);
     return user;
@@ -44,18 +44,24 @@ async function getCurrentUser(request) {
 export async function GET(request) {
   try {
     await connectDB();
-    
+
     // Verificar autenticação
     const user = await getCurrentUser(request);
     if (!user) {
-      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
+      return Response.json(
+        { error: "Usuário não autenticado" },
+        { status: 401 },
+      );
     }
-    
+
     // Verificar permissão de leitura
     if (!checkPermission(user, "tipos-servicos", "read")) {
-      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
+      return Response.json(
+        { error: "Acesso negado. Permissão insuficiente." },
+        { status: 403 },
+      );
     }
-    
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (id) {
@@ -70,32 +76,41 @@ export async function GET(request) {
     return Response.json(result);
   } catch (error) {
     console.error("Error in GET /api/tipoServico:", error);
-    return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
+    return Response.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(request) {
   try {
     await connectDB();
-    
+
     // Verificar autenticação
     const user = await getCurrentUser(request);
     if (!user) {
-      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
+      return Response.json(
+        { error: "Usuário não autenticado" },
+        { status: 401 },
+      );
     }
-    
+
     // Verificar permissão de criação
     if (!checkPermission(user, "tipos-servicos", "create")) {
-      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
+      return Response.json(
+        { error: "Acesso negado. Permissão insuficiente." },
+        { status: 403 },
+      );
     }
-    
+
     const data = await request.json();
-    
+
     // Extrair informações do usuário do corpo da requisição
     const { userId, userName, ...tipoServicoData } = data;
-    
+
     const tipoServico = await createTipoServico(tipoServicoData);
-    
+
     // Log de auditoria para criação
     try {
       await AuditService.createLog({
@@ -105,7 +120,10 @@ export async function POST(request) {
         model: "TipoServico",
         documentId: tipoServico._id,
         newData: tipoServico,
-        ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "N/A",
+        ipAddress:
+          request.headers.get("x-forwarded-for") ||
+          request.headers.get("x-real-ip") ||
+          "N/A",
         userAgent: request.headers.get("user-agent") || "N/A",
         metadata: { operation: "create_tipoServico" },
       });
@@ -113,41 +131,53 @@ export async function POST(request) {
       console.error("Erro ao criar log de auditoria:", auditError);
       // Não falhar a operação principal
     }
-    
+
     return Response.json(tipoServico);
   } catch (error) {
     console.error("Error in POST /api/tipoServico:", error);
-    return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
+    return Response.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
 export async function PUT(request) {
   try {
     await connectDB();
-    
+
     // Verificar autenticação
     const user = await getCurrentUser(request);
     if (!user) {
-      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
+      return Response.json(
+        { error: "Usuário não autenticado" },
+        { status: 401 },
+      );
     }
-    
+
     // Verificar permissão de atualização
     if (!checkPermission(user, "tipos-servicos", "update")) {
-      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
+      return Response.json(
+        { error: "Acesso negado. Permissão insuficiente." },
+        { status: 403 },
+      );
     }
-    
+
     const { id, userId, userName, ...data } = await request.json();
-    
+
     // Buscar dados anteriores para auditoria
     const previousData = await getTipoServicoById(id);
-    
+
     const tipoServico = await updateTipoServico(id, data);
     if (!tipoServico)
       return Response.json({ error: "Not found" }, { status: 404 });
-    
+
     // Log de auditoria para atualização
     try {
-      const changedFields = AuditService.getChangedFields(previousData, tipoServico);
+      const changedFields = AuditService.getChangedFields(
+        previousData,
+        tipoServico,
+      );
       await AuditService.createLog({
         userId: user._id,
         userName: user.name,
@@ -157,7 +187,10 @@ export async function PUT(request) {
         previousData,
         newData: tipoServico,
         changedFields,
-        ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "N/A",
+        ipAddress:
+          request.headers.get("x-forwarded-for") ||
+          request.headers.get("x-real-ip") ||
+          "N/A",
         userAgent: request.headers.get("user-agent") || "N/A",
         metadata: { operation: "update_tipoServico" },
       });
@@ -165,29 +198,38 @@ export async function PUT(request) {
       console.error("Erro ao criar log de auditoria:", auditError);
       // Não falhar a operação principal
     }
-    
+
     return Response.json(tipoServico);
   } catch (error) {
     console.error("Error in PUT /api/tipoServico:", error);
-    return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
+    return Response.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
 export async function DELETE(request) {
   try {
     await connectDB();
-    
+
     // Verificar autenticação
     const user = await getCurrentUser(request);
     if (!user) {
-      return Response.json({ error: "Usuário não autenticado" }, { status: 401 });
+      return Response.json(
+        { error: "Usuário não autenticado" },
+        { status: 401 },
+      );
     }
-    
+
     // Verificar permissão de exclusão
     if (!checkPermission(user, "tipos-servicos", "delete")) {
-      return Response.json({ error: "Acesso negado. Permissão insuficiente." }, { status: 403 });
+      return Response.json(
+        { error: "Acesso negado. Permissão insuficiente." },
+        { status: 403 },
+      );
     }
-    
+
     // Tentar obter ID do corpo da requisição primeiro
     let id;
     try {
@@ -198,18 +240,21 @@ export async function DELETE(request) {
       const { searchParams } = new URL(request.url);
       id = searchParams.get("id");
     }
-    
+
     if (!id) {
-      return Response.json({ error: "ID do tipo de serviço é obrigatório" }, { status: 400 });
+      return Response.json(
+        { error: "ID do tipo de serviço é obrigatório" },
+        { status: 400 },
+      );
     }
-    
+
     // Buscar dados antes da exclusão para auditoria
     const previousData = await getTipoServicoById(id);
-    
+
     const tipoServico = await deleteTipoServico(id);
     if (!tipoServico)
       return Response.json({ error: "Not found" }, { status: 404 });
-    
+
     // Log de auditoria para exclusão
     try {
       await AuditService.createLog({
@@ -219,7 +264,10 @@ export async function DELETE(request) {
         model: "TipoServico",
         documentId: id,
         previousData,
-        ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "N/A",
+        ipAddress:
+          request.headers.get("x-forwarded-for") ||
+          request.headers.get("x-real-ip") ||
+          "N/A",
         userAgent: request.headers.get("user-agent") || "N/A",
         metadata: { operation: "delete_tipoServico" },
       });
@@ -227,10 +275,13 @@ export async function DELETE(request) {
       console.error("Erro ao criar log de auditoria:", auditError);
       // Não falhar a operação principal
     }
-    
+
     return Response.json({ success: true });
   } catch (error) {
     console.error("Error in DELETE /api/tipoServico:", error);
-    return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
+    return Response.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 },
+    );
   }
 }
