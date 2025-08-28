@@ -300,16 +300,16 @@ export async function DELETE(request) {
       );
     }
 
-    // Tentar obter ID do corpo da requisição primeiro
-    let id;
-    try {
-      const body = await request.json();
-      id = body.id;
-    } catch (e) {
-      // Se não conseguir ler o corpo, tentar como parâmetro de query
-      const { searchParams } = new URL(request.url);
-      id = searchParams.get("id");
-    }
+    // Obter ID do corpo da requisição
+    const body = await request.json();
+    const { id } = body;
+    
+    console.log("🔍 Debug DELETE /api/user:", {
+      body,
+      id,
+      userId: user._id,
+      userRole: user.role,
+    });
 
     if (!id) {
       return Response.json(

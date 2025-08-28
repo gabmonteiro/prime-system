@@ -97,6 +97,7 @@ export function checkPermission(user, resource, action) {
       "usuarios:read",
       "usuarios:create",
       "usuarios:update",
+      "usuarios:delete",
     ],
     funcionario: [
       "servicos:read",
@@ -152,6 +153,7 @@ export function getUserPermissions(user) {
       "usuarios:read",
       "usuarios:create",
       "usuarios:update",
+      "usuarios:delete",
     ],
     funcionario: [
       "servicos:read",
