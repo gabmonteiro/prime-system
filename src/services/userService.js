@@ -29,8 +29,9 @@ export class UserService {
   static async getUsersForSelection() {
     try {
       // Retorna apenas dados básicos necessários para seleção
+      // Removido filtro isActive para mostrar todos os usuários no dashboard
       const users = await User.find(
-        { isActive: true },
+        {},
         {
           _id: 1,
           name: 1,
