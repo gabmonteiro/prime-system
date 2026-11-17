@@ -4,6 +4,17 @@
 
 /* Custom CSS Variables */
 :root {
+  /* Cor de destaque padrão (azul). O tema salvo em Configurações sobrescreve via /api/branding/tema.css */
+  --brand-50: 239 246 255;
+  --brand-100: 219 234 254;
+  --brand-200: 191 219 254;
+  --brand-300: 147 197 253;
+  --brand-400: 96 165 250;
+  --brand-500: 59 130 246;
+  --brand-600: 37 99 235;
+  --brand-700: 29 78 216;
+  --brand-800: 30 64 175;
+  --brand-900: 30 58 138;
   --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
   --secondary-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   --shadow-primary:
@@ -58,11 +69,11 @@ body {
 
   /* Buttons */
   .btn-primary {
-    @apply bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 inline-flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+    @apply bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 inline-flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
   }
 
   .btn-primary-large {
-    @apply bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 inline-flex items-center space-x-3 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+    @apply bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 inline-flex items-center space-x-3 shadow-lg hover:shadow-xl transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
   }
 
   .btn-secondary {
@@ -99,12 +110,12 @@ body {
   }
 
   .cta-section {
-    @apply bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-3xl p-12 lg:p-16 shadow-2xl animate-fadeInScale relative overflow-hidden;
+    @apply bg-gradient-to-r from-blue-600 via-blue-700 to-blue-900 rounded-3xl p-12 lg:p-16 shadow-2xl animate-fadeInScale relative overflow-hidden;
   }
 
   .cta-section::before {
     content: "";
-    @apply absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-sm;
+    @apply absolute inset-0 bg-gradient-to-r from-blue-600/20 to-blue-900/20 backdrop-blur-sm;
   }
 
   .cta-section > * {

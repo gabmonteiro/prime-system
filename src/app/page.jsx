@@ -1,319 +1,312 @@
 "use client";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
-  ChartBarIcon,
-  CurrencyDollarIcon,
-  ShoppingCartIcon,
-  UserGroupIcon,
-  WrenchScrewdriverIcon,
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
-  ClockIcon,
   ArrowRightIcon,
   BanknotesIcon,
-  TagIcon,
-  CalendarIcon,
+  BuildingLibraryIcon,
+  ChartBarIcon,
+  CheckCircleIcon,
+  CreditCardIcon,
+  DevicePhoneMobileIcon,
+  DocumentTextIcon,
+  IdentificationIcon,
+  ShieldCheckIcon,
+  ShoppingCartIcon,
+  SwatchIcon,
+  UsersIcon,
+  WrenchScrewdriverIcon,
+  CurrencyDollarIcon,
+  FunnelIcon,
 } from "@heroicons/react/24/outline";
+import { BrandLogo } from "../context/brandingContext";
+
+const FEATURES = [
+  {
+    icon: WrenchScrewdriverIcon,
+    title: "Serviços e parcelamento",
+    description:
+      "Lance serviços à vista ou parcelados. Cada parcela é recebida separadamente, escolhendo em qual conta o dinheiro entrou, e o sistema mostra o que está atrasado.",
+    tags: ["Parcelas mensais", "Pago / parcial / atrasado"],
+  },
+  {
+    icon: IdentificationIcon,
+    title: "Clientes e veículos",
+    description:
+      "Cadastro de clientes com seus veículos e o histórico completo de serviços de cada um, inclusive por carro. Busca rápida por nome, telefone, modelo ou placa.",
+    tags: ["Histórico por carro", "Mesclar duplicados"],
+  },
+  {
+    icon: BuildingLibraryIcon,
+    title: "Contas e saldos",
+    description:
+      "Dinheiro físico, banco ou outras contas, cada uma com seu saldo, extrato e transferências entre elas. Toda entrada e saída diz de qual conta é.",
+    tags: ["Extrato", "Transferências"],
+  },
+  {
+    icon: UsersIcon,
+    title: "Divisão entre sócios",
+    description:
+      "Calcula automaticamente quanto cada sócio gerou no mês, a partir do que realmente entrou, e registra a retirada já dividida.",
+    tags: ["Pelo que entrou no mês", "Retirada com 1 clique"],
+  },
+  {
+    icon: CurrencyDollarIcon,
+    title: "Despesas",
+    description:
+      "Compras, gastos e retiradas separados. O lucro do mês considera só as despesas operacionais, e cada despesa sai de uma conta.",
+    tags: ["Compras e gastos", "Retiradas à parte"],
+  },
+  {
+    icon: ShoppingCartIcon,
+    title: "Lista de compras",
+    description:
+      "Planeje o que precisa ser comprado por urgência. Quando comprar, um clique lança a despesa e tira o item da lista.",
+    tags: ["Urgência", "Vira despesa"],
+  },
+];
+
+const DASHBOARD = [
+  {
+    icon: ChartBarIcon,
+    title: "Lucro do mês",
+    text: "Receita recebida menos despesas, comparada ao mês anterior",
+  },
+  {
+    icon: CreditCardIcon,
+    title: "Ticket médio",
+    text: "Quanto rende, em média, cada serviço",
+  },
+  {
+    icon: WrenchScrewdriverIcon,
+    title: "Mais realizados",
+    text: "Os serviços que mais saem, no mês e em 12 meses",
+  },
+  {
+    icon: IdentificationIcon,
+    title: "Melhores clientes",
+    text: "Quem mais gasta nos últimos 12 meses",
+  },
+  {
+    icon: BanknotesIcon,
+    title: "A receber",
+    text: "Próximas parcelas e o que está atrasado",
+  },
+  {
+    icon: BuildingLibraryIcon,
+    title: "Saldo por conta",
+    text: "Onde está o dinheiro agora",
+  },
+];
+
+const EXTRAS = [
+  {
+    icon: ShieldCheckIcon,
+    title: "Perfis e permissões",
+    text: "Administrador, gerente, funcionário e visualizador: cada um vê e faz só o que pode.",
+  },
+  {
+    icon: DocumentTextIcon,
+    title: "Auditoria",
+    text: "Registro de quem criou, alterou ou excluiu cada informação, e quando.",
+  },
+  {
+    icon: FunnelIcon,
+    title: "Filtros em tudo",
+    text: "Pago, não pago, mês, tipo, participante, conta... e os totais acompanham o filtro.",
+  },
+  {
+    icon: DevicePhoneMobileIcon,
+    title: "Funciona no celular",
+    text: "Telas pensadas para usar no dia a dia, direto do celular.",
+  },
+  {
+    icon: SwatchIcon,
+    title: "Com a sua marca",
+    text: "Logo da empresa e cor de destaque configuráveis.",
+  },
+];
 
 export default function HomePage() {
-  const router = useRouter();
-
-  const handleLoginRedirect = () => {
-    router.push("/login");
-  };
-
-  const features = [
-    {
-      icon: WrenchScrewdriverIcon,
-      title: "Gerenciar Serviços",
-      description:
-        "Controle completo de serviços prestados, clientes, veículos e valores. Sistema de participantes e cálculo automático de comissões.",
-      color: "from-blue-500 to-indigo-500 text-white border-blue-200",
-      stats: "Gestão completa de serviços",
-    },
-    {
-      icon: CurrencyDollarIcon,
-      title: "Controle de Despesas",
-      description:
-        "Monitore gastos e compras da empresa com categorização automática. Relatórios detalhados de custos operacionais.",
-      color: "from-green-500 to-emerald-500 text-white border-green-200",
-      stats: "Controle financeiro total",
-    },
-    {
-      icon: ShoppingCartIcon,
-      title: "Lista de Compras",
-      description:
-        "Planeje futuras aquisições com sistema de prioridades (urgente, média, baixa) e estimativas de valores.",
-      color: "from-purple-500 to-pink-500 text-white border-purple-200",
-      stats: "Planejamento inteligente",
-    },
-    {
-      icon: UserGroupIcon,
-      title: "Gerenciar Usuários",
-      description:
-        "Administre usuários do sistema com controles de acesso e permissões diferenciadas para admins.",
-      color: "from-gray-700 to-gray-400 text-white border-gray-300",
-      stats: "Segurança e controle",
-    },
-  ];
-
-  const stats = [
-    {
-      icon: ChartBarIcon,
-      title: "Dashboard Analítico",
-      description:
-        "Visão completa do negócio com gráficos e métricas em tempo real",
-      value: "100%",
-      label: "Visibilidade",
-    },
-    {
-      icon: BanknotesIcon,
-      title: "Controle Financeiro",
-      description: "Receitas, despesas e saldo mensal automatizados",
-      value: "R$",
-      label: "Precisão",
-    },
-    {
-      icon: TagIcon,
-      title: "Categorização",
-      description: "Organize gastos por tipo e categorias personalizadas",
-      value: "Auto",
-      label: "Organização",
-    },
-    {
-      icon: CalendarIcon,
-      title: "Histórico Completo",
-      description: "Acompanhe a evolução do negócio ao longo do tempo",
-      value: "365",
-      label: "Dias/ano",
-    },
-  ];
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-100 relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float"></div>
-        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float-delayed"></div>
-        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-purple-100 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-slow"></div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float" />
+        <div className="absolute top-3/4 right-1/4 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float-delayed" />
       </div>
 
-      {/* Content */}
       <div className="relative z-10">
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-sm border-b border-white/20 sticky top-0 z-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-                  <ChartBarIcon className="h-6 w-6 text-white" />
-                </div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Prime System
-                </h1>
-              </div>
-              <button onClick={handleLoginRedirect} className="btn-primary">
-                <span>Acessar Sistema</span>
-                <ArrowRightIcon className="h-5 w-5" />
-              </button>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <BrandLogo size="md" />
+              <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent truncate">
+                Prime System
+              </span>
             </div>
+            <Link
+              href="/login"
+              className="btn-primary !px-4 !py-2 sm:!px-6 sm:!py-3 shrink-0"
+            >
+              <span>Entrar</span>
+              <ArrowRightIcon className="h-5 w-5" />
+            </Link>
           </div>
         </header>
 
-        {/* Hero Section */}
-        <section className="pt-20 pb-32 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto text-center">
-            <div className="animate-fadeInScale">
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 mb-8 leading-tight">
-                Gerencie seu
-                <span className="block bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                  Negócio Automotivo
-                </span>
-              </h1>
-              <p className="text-xl sm:text-2xl text-gray-600 mb-12 max-w-4xl mx-auto leading-relaxed">
-                Sistema completo para controle de serviços, despesas, usuários e
-                planejamento financeiro.
-                <span className="font-semibold text-indigo-600">
-                  {" "}
-                  Tudo em um só lugar.
-                </span>
+        {/* Hero */}
+        <section className="pt-16 sm:pt-20 pb-20 sm:pb-28 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-5xl mx-auto text-center animate-fadeInScale">
+            <span className="inline-flex items-center gap-2 px-3 py-1 mb-6 rounded-full bg-blue-100 text-blue-700 text-sm font-medium">
+              <CheckCircleIcon className="h-4 w-4" /> Versão 2.0
+            </span>
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 sm:mb-8 leading-tight">
+              A gestão da sua
+              <span className="block bg-gradient-to-r from-blue-500 via-blue-600 to-blue-800 bg-clip-text text-transparent">
+                estética automotiva
+              </span>
+            </h1>
+            <p className="text-lg sm:text-2xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed">
+              Serviços, parcelas, clientes, contas, despesas e a divisão entre
+              sócios.
+              <span className="font-semibold text-blue-700">
+                {" "}
+                Tudo em um só lugar.
+              </span>
+            </p>
+            <Link href="/login" className="btn-primary-large">
+              <span>Acessar o sistema</span>
+              <ArrowRightIcon className="h-6 w-6" />
+            </Link>
+          </div>
+        </section>
+
+        {/* Funcionalidades */}
+        <section className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-white/60 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-12 sm:mb-16">
+              <h2 className="text-3xl sm:text-5xl font-bold text-gray-900 mb-4">
+                Funcionalidades
+              </h2>
+              <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto">
+                Do lançamento do serviço até o dinheiro no bolso de cada sócio
               </p>
-              <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-                <button
-                  onClick={handleLoginRedirect}
-                  className="btn-primary-large"
-                >
-                  <span>Começar Agora</span>
-                  <ArrowRightIcon className="h-6 w-6" />
-                </button>
-                <div className="flex items-center space-x-2 text-gray-600">
-                  <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                  <span className="font-medium">Gratuito para começar</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {FEATURES.map((f, i) => {
+                const Icon = f.icon;
+                return (
+                  <div
+                    key={f.title}
+                    className="bg-white rounded-2xl p-6 sm:p-8 shadow-lg hover:shadow-xl transition-shadow border border-gray-100 animate-slideInUp"
+                    style={{ animationDelay: `${i * 0.08}s` }}
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mb-5 shadow-md">
+                      <Icon className="h-6 w-6 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">
+                      {f.title}
+                    </h3>
+                    <p className="text-gray-600 leading-relaxed mb-5">
+                      {f.description}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {f.tags.map((t) => (
+                        <span
+                          key={t}
+                          className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* Dashboard */}
+        <section className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-12 sm:mb-16">
+              <h2 className="text-3xl sm:text-5xl font-bold text-gray-900 mb-4">
+                Um dashboard que responde
+              </h2>
+              <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto">
+                Os números que importam para decidir, mês a mês
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {DASHBOARD.map((d) => {
+                const Icon = d.icon;
+                return (
+                  <div
+                    key={d.title}
+                    className="flex gap-4 bg-white/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 shadow-md border border-white/40"
+                  >
+                    <div className="p-3 h-fit rounded-xl bg-blue-100 text-blue-600">
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900">{d.title}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{d.text}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* Extras */}
+        <section className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-white/60 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+            {EXTRAS.map((e) => {
+              const Icon = e.icon;
+              return (
+                <div key={e.title} className="text-center">
+                  <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-white shadow-md flex items-center justify-center">
+                    <Icon className="h-7 w-7 text-blue-600" />
+                  </div>
+                  <h3 className="font-bold text-gray-900 mb-1">{e.title}</h3>
+                  <p className="text-sm text-gray-600">{e.text}</p>
                 </div>
-              </div>
-            </div>
+              );
+            })}
           </div>
         </section>
 
-        {/* Features Section */}
-        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white/60 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
-                Funcionalidades Principais
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Todas as ferramentas que você precisa para gerenciar seu negócio
-                automotivo de forma eficiente
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-              {features.map((feature, index) => {
-                const Icon = feature.icon;
-                // Novas cores suaves para os cards
-                const cardGradients = [
-                  "from-blue-100 to-blue-50",
-                  "from-green-100 to-emerald-50",
-                  "from-purple-100 to-pink-50",
-                  "from-gray-100 to-gray-50",
-                ];
-                const iconGradients = [
-                  "from-blue-400 to-indigo-400",
-                  "from-green-400 to-emerald-400",
-                  "from-purple-400 to-pink-400",
-                  "from-gray-400 to-gray-300",
-                ];
-                const textColors = [
-                  "text-blue-900",
-                  "text-green-900",
-                  "text-purple-900",
-                  "text-gray-800",
-                ];
-                const idx = index % 4;
-                return (
-                  <div
-                    key={index}
-                    className={`feature-card animation-delay-200 bg-gradient-to-br ${cardGradients[idx]} border border-gray-100 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300`}
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                  >
-                    <div
-                      className={`feature-icon bg-gradient-to-r ${iconGradients[idx]} shadow-md border-2 border-white flex items-center justify-center rounded-xl mb-4 w-14 h-14 mx-auto`}
-                    >
-                      <Icon className="h-8 w-8 text-white" />
-                    </div>
-                    <h3
-                      className={`text-2xl font-bold mb-4 ${textColors[idx]}`}
-                    >
-                      {feature.title}
-                    </h3>
-                    <p
-                      className={`mb-6 leading-relaxed ${textColors[idx]} opacity-80`}
-                    >
-                      {feature.description}
-                    </p>
-                    <div
-                      className={`inline-flex items-center px-3 py-1 bg-white/70 rounded-full text-sm font-medium ${textColors[idx]} border border-gray-200`}
-                    >
-                      {feature.stats}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* Stats Section */}
-        <section className="py-20 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
-                Controle Total do Negócio
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Métricas e análises que ajudam você a tomar decisões
-                estratégicas
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {stats.map((stat, index) => {
-                const Icon = stat.icon;
-                return (
-                  <div
-                    key={index}
-                    className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 text-center shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20 animate-slideInUp"
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                  >
-                    <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl mx-auto mb-6 flex items-center justify-center">
-                      <Icon className="h-8 w-8 text-white" />
-                    </div>
-                    <div className="text-3xl font-bold text-gray-900 mb-2">
-                      {stat.value}
-                    </div>
-                    <div className="text-sm font-semibold text-indigo-600 mb-3">
-                      {stat.label}
-                    </div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">
-                      {stat.title}
-                    </h3>
-                    <p className="text-gray-600 text-sm leading-relaxed">
-                      {stat.description}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* CTA Section */}
-        <section className="py-20 px-4 sm:px-6 lg:px-8">
+        {/* CTA */}
+        <section className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto">
-            <div className="cta-section text-center">
-              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
-                Pronto para começar?
+            <div className="cta-section text-center !p-8 sm:!p-12">
+              <h2 className="text-3xl sm:text-5xl font-bold text-white mb-4">
+                Pronto para começar o dia?
               </h2>
-              <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-                Transforme a gestão do seu negócio automotivo hoje mesmo.
-                Sistema completo, fácil de usar e resultados imediatos.
+              <p className="text-lg sm:text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+                Entre com seu usuário para lançar serviços e acompanhar o mês.
               </p>
-              <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-                <button
-                  onClick={handleLoginRedirect}
-                  className="btn-white-large"
-                >
-                  <span>Acessar Sistema</span>
-                  <ArrowRightIcon className="h-6 w-6" />
-                </button>
-                <div className="flex items-center space-x-2 text-white/90">
-                  <CheckCircleIcon className="h-5 w-5" />
-                  <span className="font-medium">Setup em 5 minutos</span>
-                </div>
-              </div>
+              <Link href="/login" className="btn-white-large">
+                <span>Acessar o sistema</span>
+                <ArrowRightIcon className="h-6 w-6" />
+              </Link>
             </div>
           </div>
         </section>
 
         {/* Footer */}
-        <footer className="bg-gray-900 text-white py-12 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto text-center">
-            <div className="flex items-center justify-center space-x-3 mb-8">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-                <ChartBarIcon className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="text-2xl font-bold">Prime System</h3>
+        <footer className="bg-gray-900 text-white py-10 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <BrandLogo size="sm" />
+              <span className="text-lg font-bold">Prime System</span>
             </div>
-            <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
-              Sistema de gestão completo para empresas automotivas. Controle de
-              serviços, despesas, usuários e muito mais.
+            <p className="text-gray-500 text-sm">
+              © {new Date().getFullYear()} Prime System. Todos os direitos
+              reservados.
             </p>
-            <div className="border-t border-gray-800 pt-8">
-              <p className="text-gray-500">
-                © 2025 Prime System. Todos os direitos reservados.
-              </p>
-            </div>
           </div>
         </footer>
       </div>

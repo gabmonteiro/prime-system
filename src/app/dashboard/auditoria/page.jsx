@@ -59,12 +59,6 @@ export default function AuditoriaPage() {
     }
   }, [user, loading, router, hasPermission]);
 
-  useEffect(() => {
-    if (user && hasPermission("auditoria", "read")) {
-      fetchData(currentPage, itemsPerPage);
-    }
-  }, [user, currentPage, itemsPerPage, filters, hasPermission]);
-
   // Show toast notification
   const showToast = (message, type = "success") => {
     setToastState({ show: true, message, type });
@@ -107,6 +101,13 @@ export default function AuditoriaPage() {
       setIsLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (user && hasPermission("auditoria", "read")) {
+      fetchData(currentPage, itemsPerPage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, currentPage, itemsPerPage, filters, hasPermission]);
 
   function handleFilterChange(name, value) {
     setFilters((prev) => ({ ...prev, [name]: value }));
@@ -221,8 +222,8 @@ export default function AuditoriaPage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="p-6">
+    <DashboardLayout permission="auditoria:read">
+      <div>
         {/* Toast Notification */}
         {toastState.show && (
           <div
@@ -308,6 +309,11 @@ export default function AuditoriaPage() {
                     { value: "Despesa", label: "Despesas" },
                     { value: "FuturaCompra", label: "Futuras Compras" },
                     { value: "TipoServico", label: "Tipos de Serviço" },
+                    { value: "Cliente", label: "Clientes" },
+                    { value: "Carro", label: "Veículos" },
+                    { value: "Conta", label: "Contas" },
+                    { value: "Transferencia", label: "Transferências" },
+                    { value: "SystemConfig", label: "Configurações" },
                   ]}
                 />
               </div>
@@ -450,111 +456,113 @@ export default function AuditoriaPage() {
 
                 {/* Desktop Table View */}
                 <div className="hidden lg:block">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Ação
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Usuário
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Modelo
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          IP
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Timestamp
-                        </th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Ações
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {auditLogs.map((log) => (
-                        <tr key={log._id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-8 w-8">
-                                <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                                  {getActionIcon(log.action)}
-                                </div>
-                              </div>
-                              <div className="ml-3">
-                                <div
-                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getActionColor(log.action)}`}
-                                >
-                                  {log.action}
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {log.metadata?.operation || "Operação"}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-8 w-8">
-                                <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
-                                  <UserIcon className="h-4 w-4 text-gray-600" />
-                                </div>
-                              </div>
-                              <div className="ml-3">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {log.userName}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {log.userId}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {log.model}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              ID: {log.documentId}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}
-                            >
-                              {getStatusIcon(log.status)}
-                              <span className="ml-1">{log.status}</span>
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center text-sm text-gray-900">
-                              <GlobeAltIcon className="h-4 w-4 text-gray-400 mr-1" />
-                              {log.ipAddress || "N/A"}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {formatTimestamp(log.timestamp)}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button
-                              onClick={() => viewLogDetails(log)}
-                              className="text-purple-600 hover:text-purple-900 p-1 rounded-full hover:bg-purple-50"
-                              title="Ver detalhes do log"
-                            >
-                              <EyeIcon className="h-4 w-4" />
-                            </button>
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ação
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Usuário
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Modelo
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            IP
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Timestamp
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ações
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {auditLogs.map((log) => (
+                          <tr key={log._id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-8 w-8">
+                                  <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
+                                    {getActionIcon(log.action)}
+                                  </div>
+                                </div>
+                                <div className="ml-3">
+                                  <div
+                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getActionColor(log.action)}`}
+                                  >
+                                    {log.action}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {log.metadata?.operation || "Operação"}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-8 w-8">
+                                  <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <UserIcon className="h-4 w-4 text-gray-600" />
+                                  </div>
+                                </div>
+                                <div className="ml-3">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {log.userName}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    {log.userId}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {log.model}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                ID: {log.documentId}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(log.status)}`}
+                              >
+                                {getStatusIcon(log.status)}
+                                <span className="ml-1">{log.status}</span>
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center text-sm text-gray-900">
+                                <GlobeAltIcon className="h-4 w-4 text-gray-400 mr-1" />
+                                {log.ipAddress || "N/A"}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {formatTimestamp(log.timestamp)}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <button
+                                onClick={() => viewLogDetails(log)}
+                                className="text-purple-600 hover:text-purple-900 p-1 rounded-full hover:bg-purple-50"
+                                title="Ver detalhes do log"
+                              >
+                                <EyeIcon className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
                 {/* Paginação */}

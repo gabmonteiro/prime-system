@@ -1,251 +1,101 @@
 "use client";
-import React, {
+import {
   createContext,
-  useContext,
-  useState,
-  useEffect,
   useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
 } from "react";
+import { hasPermission as checkPermission } from "../libs/permissions";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
+// A sessão vive num cookie HttpOnly assinado; o cliente só pergunta ao servidor quem está logado.
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Função para validar se o token ainda é válido
-  const validateStoredUser = (storedUser) => {
+  const loadMe = useCallback(async () => {
     try {
-      const userData = JSON.parse(storedUser);
-
-      // Verificar se tem os campos obrigatórios
-      if (!userData._id || !userData.email) {
+      const res = await fetch("/api/auth/me", { cache: "no-store" });
+      if (!res.ok) {
+        setUser(null);
         return null;
       }
-
-      // Verificar se tem timestamp de login (para expiração)
-      if (userData.loginTimestamp) {
-        const loginTime = new Date(userData.loginTimestamp);
-        const now = new Date();
-        const hoursDiff = (now - loginTime) / (1000 * 60 * 60);
-
-        // Expirar sessão após 24 horas
-        if (hoursDiff > 24) {
-          localStorage.removeItem("user");
-          return null;
-        }
-      }
-
-      return userData;
+      const me = await res.json();
+      setUser(me);
+      return me;
     } catch {
-      localStorage.removeItem("user");
+      setUser(null);
       return null;
     }
-  };
-
-  // Verificar autenticação no servidor
-  const verifyAuthOnServer = async (userData) => {
-    try {
-      const response = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: userData._id, email: userData.email }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Token inválido");
-      }
-
-      const result = await response.json();
-      return result.valid;
-    } catch (error) {
-      console.error("Erro ao verificar autenticação:", error);
-      return false;
-    }
-  };
-
-  // Carregar usuário do localStorage na inicialização
-  useEffect(() => {
-    const initAuth = async () => {
-      setLoading(true);
-      try {
-        const storedUser = localStorage.getItem("user");
-
-        if (storedUser) {
-          const userData = validateStoredUser(storedUser);
-
-          if (userData) {
-            // Verificar no servidor se o usuário ainda é válido
-            const isValid = await verifyAuthOnServer(userData);
-
-            if (isValid) {
-              setUser(userData);
-            } else {
-              localStorage.removeItem("user");
-              setUser(null);
-            }
-          } else {
-            setUser(null);
-          }
-        } else {
-          setUser(null);
-        }
-      } catch (error) {
-        console.error("Erro ao inicializar autenticação:", error);
-        localStorage.removeItem("user");
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initAuth();
   }, []);
 
-  const login = async (email, password) => {
+  useEffect(() => {
+    loadMe().finally(() => setLoading(false));
+  }, [loadMe]);
+
+  // Revalida a cada 30 min (usuário desativado/alterado é deslogado)
+  useEffect(() => {
+    if (!user) return;
+    const id = setInterval(loadMe, 30 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [user, loadMe]);
+
+  const login = useCallback(async (email, password) => {
     setLoading(true);
     setError(null);
-
     try {
-      // Validações básicas
-      if (!email || !password) {
-        setError("Email e senha são obrigatórios");
-        return false;
-      }
-
-      if (!email.includes("@")) {
-        setError("Email inválido");
-        return false;
-      }
-
       const res = await fetch("/api/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.toLowerCase().trim(), password }),
       });
-
-      const data = await res.json();
-
-      if (res.ok && data && !data.message) {
-        // Adicionar timestamp de login para controle de expiração
-        const userWithTimestamp = {
-          ...data,
-          loginTimestamp: new Date().toISOString(),
-        };
-
-        setUser(userWithTimestamp);
-        localStorage.setItem("user", JSON.stringify(userWithTimestamp));
-
-        // Limpar dados de lembrar login se existir
-        localStorage.removeItem("prime-login");
-
-        return true;
-      } else {
-        const errorMessage =
-          data.message || data.error || "Usuário ou senha inválidos";
-        setError(errorMessage);
-        return false;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data.error || "Usuário ou senha inválidos";
+        setError(msg);
+        return msg;
       }
-    } catch (err) {
-      console.error("Erro durante login:", err);
-      setError("Erro de conexão. Tente novamente.");
-      return false;
+      setUser(data);
+      return true;
+    } catch {
+      const msg = "Erro de conexão. Tente novamente.";
+      setError(msg);
+      return msg;
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(async () => {
     setUser(null);
     setError(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("prime-login");
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+  }, []);
 
-    // Opcional: notificar o servidor sobre logout
-    fetch("/api/auth/logout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    }).catch(() => {
-      // Ignorar erros de logout no servidor
-    });
-  };
-
-  // Função para refresh do token/dados do usuário
-  const refreshUser = async () => {
-    if (!user) return false;
-
-    try {
-      const isValid = await verifyAuthOnServer(user);
-
-      if (!isValid) {
-        logout();
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Erro ao renovar usuário:", error);
-      logout();
-      return false;
-    }
-  };
-
-  // Auto-refresh a cada 30 minutos se o usuário estiver logado
-  useEffect(() => {
-    if (!user) return;
-
-    const interval = setInterval(
-      async () => {
-        await refreshUser();
-      },
-      30 * 60 * 1000,
-    ); // 30 minutos
-
-    return () => clearInterval(interval);
-  }, [user]);
-
-  // Função para verificar permissões
   const hasPermission = useCallback(
-    (resource, action) => {
-      if (!user) return false;
-
-      // Admin sempre tem todas as permissões
-      if (user.role === "admin") return true;
-
-      // Verificar se tem permissão específica ou permissão de gerenciamento
-      return (
-        user.permissionsList?.includes(`${resource}:${action}`) ||
-        user.permissionsList?.includes(`${resource}:manage`)
-      );
-    },
+    (resource, action) => checkPermission(user, resource, action),
     [user],
   );
 
-  // Função para verificar se é admin
-  const isAdmin = user?.role === "admin";
-
-  // Função para verificar se tem role específica
-  const hasRole = useCallback((role) => user?.role === role, [user]);
-
-  const value = {
-    user,
-    login,
-    logout,
-    loading,
-    error,
-    refreshUser,
-    isAuthenticated: !!user,
-    isAdmin,
-    hasPermission,
-    hasRole,
-    role: user?.role || null,
-    permissions: user?.permissions || [],
-    permissionsList: user?.permissionsList || [],
-  };
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      error,
+      login,
+      logout,
+      refreshUser: loadMe,
+      isAuthenticated: !!user,
+      isAdmin: user?.role === "admin",
+      hasPermission,
+      role: user?.role || null,
+    }),
+    [user, loading, error, login, logout, loadMe, hasPermission],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

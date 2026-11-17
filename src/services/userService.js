@@ -1,254 +1,154 @@
-// src/services/userService.js
-import User from "../models/user.js";
 import bcrypt from "bcryptjs";
+import User from "../models/user.js";
 import {
-  getUserPermissions,
+  ROLES,
   getFormattedPermissions,
-} from "./permissionService.js";
+  getRolePermissions,
+} from "../libs/permissions.js";
+import {
+  badRequest,
+  forbidden,
+  notFound,
+  searchRegex,
+  toObjectId,
+} from "../libs/api.js";
 
-export class UserService {
-  static async getAllUsers() {
-    try {
-      const users = await User.find({}, { password: 0 }).sort({ name: 1 });
+const SALT_ROUNDS = 10;
 
-      // Adicionar permissões formatadas para cada usuário
-      const usersWithPermissions = users.map((user) => {
-        const userObj = user.toObject();
-        userObj.permissions = getFormattedPermissions(userObj);
-        userObj.permissionsList = getUserPermissions(userObj);
-        return userObj;
-      });
+/** Formato público do usuário (sem senha) com permissões. */
+export function toPublicUser(user) {
+  if (!user) return null;
+  const obj = user.toObject ? user.toObject() : { ...user };
+  delete obj.password;
+  return {
+    ...obj,
+    isAdmin: obj.role === "admin",
+    permissions: getFormattedPermissions(obj.role),
+    permissionsList: getRolePermissions(obj.role),
+  };
+}
 
-      return usersWithPermissions;
-    } catch (error) {
-      console.error("Erro ao buscar usuários:", error);
-      throw new Error("Erro ao buscar usuários");
+export async function listUsers({ q, role, status }) {
+  const filter = {};
+  const rx = searchRegex(q);
+  if (rx) filter.$or = [{ name: rx }, { email: rx }];
+  if (role && ROLES.includes(role)) filter.role = role;
+  if (status === "ativo") filter.isActive = { $ne: false };
+  if (status === "inativo") filter.isActive = false;
+  const users = await User.find(filter, { password: 0 })
+    .sort({ name: 1 })
+    .lean();
+  return users.map(toPublicUser);
+}
+
+export async function listUsersForSelection() {
+  return User.find({}, { _id: 1, name: 1, role: 1, isActive: 1 })
+    .sort({ name: 1 })
+    .lean();
+}
+
+export async function getUserById(id) {
+  const user = await User.findById(toObjectId(id), { password: 0 }).lean();
+  if (!user) throw notFound("Usuário não encontrado");
+  return toPublicUser(user);
+}
+
+function validate(data, { isNew }) {
+  if (isNew || data.name !== undefined) {
+    if (!data.name?.trim()) throw badRequest("Nome é obrigatório");
+  }
+  if (isNew || data.email !== undefined) {
+    if (!data.email?.includes("@")) throw badRequest("Email inválido");
+  }
+  if (isNew || data.password) {
+    if (!data.password || data.password.length < 6) {
+      throw badRequest("A senha deve ter pelo menos 6 caracteres");
     }
   }
+  if (isNew || data.role !== undefined) {
+    if (!ROLES.includes(data.role)) throw badRequest("Perfil inválido");
+  }
+}
 
-  static async getUsersForSelection() {
-    try {
-      // Retorna apenas dados básicos necessários para seleção
-      // Removido filtro isActive para mostrar todos os usuários no dashboard
-      const users = await User.find(
-        {},
-        {
-          _id: 1,
-          name: 1,
-          email: 1,
-          role: 1,
-        },
-      ).sort({ name: 1 });
-
-      return users;
-    } catch (error) {
-      console.error("Erro ao buscar usuários para seleção:", error);
-      throw new Error("Erro ao buscar usuários para seleção");
+/**
+ * Regras de hierarquia:
+ * - Só admin cria/edita/exclui admins ou atribui o perfil admin.
+ * - Ninguém altera o próprio perfil, nem se desativa/exclui.
+ */
+function assertCanManage(actor, target, data = {}) {
+  const actorIsAdmin = actor.role === "admin";
+  if (!actorIsAdmin && (target?.role === "admin" || data.role === "admin")) {
+    throw forbidden("Apenas administradores podem gerenciar administradores");
+  }
+  if (target && String(target._id) === String(actor._id)) {
+    if (data.role !== undefined && data.role !== target.role) {
+      throw badRequest("Você não pode alterar o seu próprio perfil");
+    }
+    if (data.isActive === false) {
+      throw badRequest("Você não pode desativar o seu próprio usuário");
     }
   }
+}
 
-  static async getUserById(id) {
-    try {
-      const user = await User.findById(id, { password: 0 });
-      if (!user) {
-        throw new Error("Usuário não encontrado");
-      }
+export async function createUser(actor, data) {
+  validate(data, { isNew: true });
+  assertCanManage(actor, null, data);
+  const email = data.email.toLowerCase().trim();
+  if (await User.exists({ email })) throw badRequest("Email já está em uso");
+  const user = await User.create({
+    name: data.name.trim(),
+    email,
+    role: data.role,
+    isActive: data.isActive !== false,
+    password: await bcrypt.hash(data.password, SALT_ROUNDS),
+  });
+  return toPublicUser(user);
+}
 
-      // Adicionar permissões formatadas
-      const userObj = user.toObject();
-      userObj.permissions = getFormattedPermissions(userObj);
-      userObj.permissionsList = getUserPermissions(userObj);
+export async function updateUser(actor, id, data) {
+  const user = await User.findById(toObjectId(id));
+  if (!user) throw notFound("Usuário não encontrado");
+  const previous = toPublicUser(user);
+  validate(data, { isNew: false });
+  assertCanManage(actor, user, data);
 
-      return userObj;
-    } catch (error) {
-      console.error("Erro ao buscar usuário:", error);
-      throw error;
+  if (data.name !== undefined) user.name = data.name.trim();
+  if (data.email !== undefined) {
+    const email = data.email.toLowerCase().trim();
+    if (email !== user.email && (await User.exists({ email }))) {
+      throw badRequest("Email já está em uso");
     }
+    user.email = email;
   }
-
-  static async getUserByEmail(email) {
-    try {
-      const user = await User.findOne({ email });
-      return user;
-    } catch (error) {
-      console.error("Erro ao buscar usuário por email:", error);
-      throw error;
-    }
+  if (data.role !== undefined) user.role = data.role;
+  if (data.isActive !== undefined) user.isActive = Boolean(data.isActive);
+  if (data.password) {
+    user.password = await bcrypt.hash(data.password, SALT_ROUNDS);
   }
+  await user.save();
+  return { previous, user: toPublicUser(user) };
+}
 
-  static async createUser(userData) {
-    try {
-      // Verificar se o email já existe
-      const existingUser = await User.findOne({ email: userData.email });
-      if (existingUser) {
-        throw new Error("Email já está em uso");
-      }
-
-      // Hash da senha
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(userData.password, saltRounds);
-
-      // Criar usuário
-      const newUser = new User({
-        ...userData,
-        password: hashedPassword,
-      });
-
-      const savedUser = await newUser.save();
-
-      // Retornar usuário sem senha
-      const userObj = savedUser.toObject();
-      delete userObj.password;
-
-      // Adicionar permissões formatadas
-      userObj.permissions = getFormattedPermissions(userObj);
-      userObj.permissionsList = getUserPermissions(userObj);
-
-      return userObj;
-    } catch (error) {
-      console.error("Erro ao criar usuário:", error);
-      throw error;
-    }
+export async function deleteUser(actor, id) {
+  const user = await User.findById(toObjectId(id));
+  if (!user) throw notFound("Usuário não encontrado");
+  if (String(user._id) === String(actor._id)) {
+    throw badRequest("Não é possível excluir o próprio usuário");
   }
+  assertCanManage(actor, user);
+  await User.deleteOne({ _id: user._id });
+  return toPublicUser(user);
+}
 
-  static async updateUser(id, userData) {
-    try {
-      console.log("🔍 Debug updateUser:", {
-        id,
-        userData,
-        hasPassword: !!userData.password,
-        passwordLength: userData.password?.length,
-      });
-
-      // Criar uma cópia dos dados para não modificar o objeto original
-      const updateData = { ...userData };
-
-      // Se a senha estiver sendo atualizada, fazer hash
-      if (updateData.password && updateData.password.trim() !== "") {
-        const saltRounds = 10;
-        updateData.password = await bcrypt.hash(
-          updateData.password,
-          saltRounds,
-        );
-        console.log("🔐 Senha atualizada com hash");
-      } else {
-        // Se não há senha ou está vazia, remover o campo para não interferir na validação
-        delete updateData.password;
-        console.log("🗑️ Campo password removido da atualização");
-      }
-
-      // Adicionar timestamp de atualização
-      updateData.updatedAt = Date.now();
-
-      console.log("📝 Dados finais para atualização:", updateData);
-
-      const updatedUser = await User.findByIdAndUpdate(id, updateData, {
-        new: true,
-        runValidators: true,
-      }).select({ password: 0 });
-
-      if (!updatedUser) {
-        throw new Error("Usuário não encontrado");
-      }
-
-      // Adicionar permissões formatadas
-      const userObj = updatedUser.toObject();
-      userObj.permissions = getFormattedPermissions(userObj);
-      userObj.permissionsList = getUserPermissions(userObj);
-
-      return userObj;
-    } catch (error) {
-      console.error("Erro ao atualizar usuário:", error);
-      throw error;
-    }
-  }
-
-  static async deleteUser(id) {
-    try {
-      const deletedUser = await User.findByIdAndDelete(id);
-      if (!deletedUser) {
-        throw new Error("Usuário não encontrado");
-      }
-      return { success: true, message: "Usuário excluído com sucesso" };
-    } catch (error) {
-      console.error("Erro ao excluir usuário:", error);
-      throw error;
-    }
-  }
-
-  static async changePassword(id, currentPassword, newPassword) {
-    try {
-      const user = await User.findById(id);
-      if (!user) {
-        throw new Error("Usuário não encontrado");
-      }
-
-      // Verificar senha atual
-      const isCurrentPasswordValid = await bcrypt.compare(
-        currentPassword,
-        user.password,
-      );
-      if (!isCurrentPasswordValid) {
-        throw new Error("Senha atual incorreta");
-      }
-
-      // Hash da nova senha
-      const saltRounds = 10;
-      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
-      // Atualizar senha
-      user.password = hashedNewPassword;
-      user.updatedAt = Date.now();
-      await user.save();
-
-      return { success: true, message: "Senha alterada com sucesso" };
-    } catch (error) {
-      console.error("Erro ao alterar senha:", error);
-      throw error;
-    }
-  }
-
-  static async validateCredentials(email, password) {
-    try {
-      const user = await User.findOne({ email });
-      if (!user) {
-        return { isValid: false, user: null };
-      }
-
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) {
-        return { isValid: false, user: null };
-      }
-
-      // Retornar usuário sem senha
-      const userObj = user.toObject();
-      delete userObj.password;
-
-      // Adicionar permissões formatadas
-      userObj.permissions = getFormattedPermissions(userObj);
-      userObj.permissionsList = getUserPermissions(userObj);
-
-      return { isValid: true, user: userObj };
-    } catch (error) {
-      console.error("Erro ao validar credenciais:", error);
-      throw error;
-    }
-  }
-
-  static async getUserPermissions(userId) {
-    try {
-      const user = await User.findById(userId);
-      if (!user) {
-        throw new Error("Usuário não encontrado");
-      }
-
-      return {
-        permissions: getFormattedPermissions(user),
-        permissionsList: getUserPermissions(user),
-      };
-    } catch (error) {
-      console.error("Erro ao buscar permissões do usuário:", error);
-      throw error;
-    }
-  }
+export async function validateCredentials(email, password) {
+  const user = await User.findOne({
+    email: String(email).toLowerCase().trim(),
+  });
+  // Compara mesmo sem usuário para não vazar por tempo de resposta
+  const hash =
+    user?.password ||
+    "$2b$10$CwTycUXWue0Thq9StjUM0uJ8a3Xv1m0Yw6m5xSxWZ0Gk3a8eQ6pW2";
+  const ok = await bcrypt.compare(String(password), hash);
+  if (!user || !ok || user.isActive === false) return null;
+  return toPublicUser(user);
 }

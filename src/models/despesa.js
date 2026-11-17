@@ -18,11 +18,28 @@ const DespesaSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
+  // compra/gasto = despesas operacionais (entram no lucro)
+  // retirada = dinheiro retirado pelos sócios (sai da conta, mas não é custo)
   tipo: {
     type: String,
-    enum: ["compra", "gasto"],
+    enum: ["compra", "gasto", "retirada"],
     required: true,
   },
+  // Conta de onde o dinheiro saiu (v2). Registros antigos recebem a conta na migração.
+  conta: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Conta",
+    default: null,
+  },
+  // Para retiradas: quanto ficou para cada sócio
+  distribuicao: [
+    {
+      _id: false,
+      user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      nome: String,
+      valor: Number,
+    },
+  ],
   createdAt: {
     type: Date,
     default: Date.now,

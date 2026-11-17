@@ -1,74 +1,89 @@
-import { UserService } from "../../../services/userService.js";
 import connectDB from "../../../libs/db.js";
+import { validateCredentials } from "../../../services/userService.js";
+import {
+  SESSION_COOKIE,
+  createSessionToken,
+  sessionCookieOptions,
+} from "../../../libs/session.js";
+import { errorResponse } from "../../../libs/api.js";
 
-export async function POST(req) {
+// Limite simples de tentativas por IP+email (memória do processo)
+const attempts = new Map();
+const WINDOW_MS = 15 * 60 * 1000;
+const MAX_ATTEMPTS = 10;
+
+function rateKey(request, email) {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    request.headers.get("x-real-ip") ||
+    "local";
+  return `${ip}|${email}`;
+}
+
+function isLimited(key) {
+  const now = Date.now();
+  const entry = attempts.get(key);
+  if (!entry || now - entry.first > WINDOW_MS) return false;
+  return entry.count >= MAX_ATTEMPTS;
+}
+
+function registerFailure(key) {
+  const now = Date.now();
+  const entry = attempts.get(key);
+  if (!entry || now - entry.first > WINDOW_MS) {
+    attempts.set(key, { first: now, count: 1 });
+  } else {
+    entry.count += 1;
+  }
+  if (attempts.size > 5000) attempts.clear();
+}
+
+export async function POST(request) {
   try {
-    // Garantir conexão com o banco
-    await connectDB();
-
-    const { email, password } = await req.json();
-
-    // Validações básicas
+    const { email, password } = await request.json().catch(() => ({}));
     if (!email || !password) {
-      return new Response(
-        JSON.stringify({ message: "Email e senha são obrigatórios" }),
+      return Response.json(
+        { error: "Email e senha são obrigatórios" },
         { status: 400 },
       );
     }
-
-    if (!email.includes("@")) {
-      return new Response(JSON.stringify({ message: "Email inválido" }), {
-        status: 400,
-      });
-    }
-
-    const authResult = await UserService.validateCredentials(
-      email.toLowerCase().trim(),
-      password,
-    );
-
-    if (!authResult.isValid) {
-      return new Response(
-        JSON.stringify({ message: "Credenciais inválidas" }),
-        { status: 401 },
+    const normalized = String(email).toLowerCase().trim();
+    const key = rateKey(request, normalized);
+    if (isLimited(key)) {
+      return Response.json(
+        {
+          error: "Muitas tentativas. Aguarde alguns minutos e tente novamente.",
+        },
+        { status: 429 },
       );
     }
 
-    const user = authResult.user;
+    await connectDB();
+    const user = await validateCredentials(normalized, password);
+    if (!user) {
+      registerFailure(key);
+      return Response.json({ error: "Credenciais inválidas" }, { status: 401 });
+    }
+    attempts.delete(key);
 
-    // Criar resposta com dados do usuário (sem senha)
-    const userData = {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      isAdmin: user.role === "admin", // Compatibilidade com código existente
-      permissions: user.permissions,
-      permissionsList: user.permissionsList,
-    };
-
-    // Define cookie de autenticação seguro
-    const response = new Response(JSON.stringify(userData), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    response.headers.append(
-      "Set-Cookie",
-      `user=${user._id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400; Secure=${process.env.NODE_ENV === "production"}`,
-    );
-
+    const response = Response.json(user);
+    const token = await createSessionToken(user._id);
+    const opts = sessionCookieOptions();
+    const cookie = [
+      `${SESSION_COOKIE}=${token}`,
+      `Path=${opts.path}`,
+      `Max-Age=${opts.maxAge}`,
+      "HttpOnly",
+      "SameSite=Lax",
+      opts.secure ? "Secure" : null,
+    ]
+      .filter(Boolean)
+      .join("; ");
+    response.headers.append("Set-Cookie", cookie);
+    // Remove o cookie inseguro da v1
+    response.headers.append("Set-Cookie", "user=; Path=/; Max-Age=0");
     return response;
-  } catch (err) {
-    console.error("Erro no login:", err);
-    return new Response(
-      JSON.stringify({
-        message: "Erro interno do servidor",
-        error: process.env.NODE_ENV === "development" ? err.message : undefined,
-      }),
-      { status: 500 },
-    );
+  } catch (error) {
+    return errorResponse(error);
   }
 }

@@ -6,9 +6,6 @@ export class AuditService {
    */
   static async createLog(auditData) {
     try {
-      console.log("AuditService.createLog - Iniciando criação de log");
-      console.log("Dados recebidos:", auditData);
-
       const {
         userId,
         userName,
@@ -25,14 +22,6 @@ export class AuditService {
         metadata = {},
       } = auditData;
 
-      console.log("Dados extraídos:", {
-        userId,
-        userName,
-        action,
-        model,
-        documentId,
-      });
-
       // Converter dados para estruturas planas/JSON-safe antes de sanitizar
       const plainPreviousData = this.makeJsonSafe(previousData);
       const plainNewData = this.makeJsonSafe(newData);
@@ -44,8 +33,6 @@ export class AuditService {
       const sanitizedNewData = plainNewData
         ? this.sanitizeSensitiveData(plainNewData)
         : null;
-
-      console.log("Dados sanitizados prontos para salvar");
 
       const auditLog = new AuditLog({
         userId,
@@ -63,28 +50,15 @@ export class AuditService {
         metadata,
       });
 
-      console.log("Instância AuditLog criada:", {
-        userId: auditLog.userId,
-        model: auditLog.model,
-        action: auditLog.action,
-        documentId: auditLog.documentId,
-      });
-
       // Validar manualmente antes de salvar
       const validationError = auditLog.validateSync();
-      if (validationError) {
-        console.error("Erro de validação:", validationError);
-        console.error("Detalhes da validação:", validationError.errors);
-        throw validationError;
-      }
+      if (validationError) throw validationError;
 
       const result = await auditLog.save();
-      console.log("Log salvo com sucesso:", { id: result._id });
 
       return result;
     } catch (error) {
       console.error("Erro ao criar log de auditoria:", error);
-      console.error("Stack trace:", error.stack);
       // Não falhar a operação principal por erro de auditoria
       return null;
     }

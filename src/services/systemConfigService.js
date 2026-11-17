@@ -9,7 +9,7 @@ const DEFAULT_CONFIGS = {
   },
 };
 
-// Inicializar configurações padrão se não existirem
+// Inicializar configurações padrão se não existirem (usado pelo seed)
 export async function initializeDefaultConfigs() {
   try {
     for (const [key, config] of Object.entries(DEFAULT_CONFIGS)) {
@@ -61,7 +61,10 @@ export async function setConfig(key, value, description = null) {
 // Obter todas as configurações
 export async function getAllConfigs() {
   try {
-    const configs = await SystemConfig.find({});
+    // Logo/tema têm rotas próprias (/api/branding); a logo é grande demais para vir aqui
+    const configs = await SystemConfig.find({
+      key: { $nin: ["logo", "tema"] },
+    });
     const result = {};
 
     // Adicionar configurações existentes
