@@ -1,268 +1,136 @@
 import {
-  createFuturaCompra,
-  getFuturaCompras,
-  getFuturaCompraById,
-  updateFuturaCompra,
-  deleteFuturaCompra,
-} from "../../../services/futuraCompraService.js";
-import connectDB from "../../../libs/db.js";
-import { AuditService } from "../../../services/auditService.js";
-import { checkPermission } from "../../../services/permissionService.js";
-import { UserService } from "../../../services/userService.js";
+  route,
+  audit,
+  badRequest,
+  getPagination,
+  notFound,
+  paginationInfo,
+  searchRegex,
+  toObjectId,
+} from "../../../libs/api.js";
+import FuturaCompra from "../../../models/futuraCompra.js";
+import { round2 } from "../../../libs/money.js";
 
-// Função para obter usuário atual baseado no cookie de autenticação
-async function getCurrentUser(request) {
-  try {
-    const cookieHeader = request.headers.get("cookie");
+const URGENCIAS = ["baixo", "medio", "alto"];
 
-    if (!cookieHeader) {
-      return null;
-    }
-
-    // Extrair o userId do cookie 'user'
-    const cookies = cookieHeader.split(";").reduce((acc, cookie) => {
-      const [key, value] = cookie.trim().split("=");
-      acc[key] = value;
-      return acc;
-    }, {});
-
-    const userId = cookies.user;
-
-    if (!userId) {
-      return null;
-    }
-
-    // Buscar usuário no banco
-    const user = await UserService.getUserById(userId);
-    return user;
-  } catch (error) {
-    console.error("Erro ao obter usuário atual:", error);
-    return null;
-  }
+function normalize(data, current = {}) {
+  const nome = (data.nome ?? current.nome ?? "").trim();
+  if (!nome) throw badRequest("Nome é obrigatório");
+  const urgencia = data.urgencia ?? current.urgencia;
+  if (!URGENCIAS.includes(urgencia)) throw badRequest("Urgência inválida");
+  const rawValor = data.valor !== undefined ? data.valor : current.valor;
+  const valor = rawValor === "" || rawValor == null ? null : round2(rawValor);
+  return {
+    nome,
+    urgencia,
+    valor,
+    desc: (data.desc ?? current.desc ?? "").trim(),
+  };
 }
 
-export async function GET(request) {
-  try {
-    await connectDB();
-
-    // Verificar autenticação
-    const user = await getCurrentUser(request);
-    if (!user) {
-      return Response.json(
-        { error: "Usuário não autenticado" },
-        { status: 401 },
-      );
-    }
-
-    // Verificar permissão de leitura
-    if (!checkPermission(user, "lista-compras", "read")) {
-      return Response.json(
-        { error: "Acesso negado. Permissão insuficiente." },
-        { status: 403 },
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-    if (id) {
-      const futura = await getFuturaCompraById(id);
-      if (!futura)
-        return Response.json({ error: "Not found" }, { status: 404 });
-      return Response.json(futura);
-    }
-    const futuras = await getFuturaCompras();
-    return Response.json(futuras);
-  } catch (error) {
-    console.error("Error in GET /api/futuraCompra:", error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+export const GET = route("lista-compras:read", async ({ searchParams }) => {
+  const id = searchParams.get("id");
+  if (id) {
+    const item = await FuturaCompra.findById(toObjectId(id)).lean();
+    if (!item) throw notFound("Item não encontrado");
+    return item;
   }
-}
+  const match = {};
+  const rx = searchRegex(searchParams.get("q"));
+  if (rx) match.$or = [{ nome: rx }, { desc: rx }];
+  const urgencia = searchParams.get("urgencia");
+  if (URGENCIAS.includes(urgencia)) match.urgencia = urgencia;
 
-export async function POST(request) {
-  try {
-    await connectDB();
+  const { page, limit, skip } = getPagination(searchParams);
+  const [data, agg] = await Promise.all([
+    FuturaCompra.aggregate([
+      { $match: match },
+      {
+        $addFields: {
+          _ordem: {
+            $indexOfArray: [["alto", "medio", "baixo"], "$urgencia"],
+          },
+        },
+      },
+      { $sort: { _ordem: 1, createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      { $project: { _ordem: 0 } },
+    ]),
+    FuturaCompra.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: "$urgencia",
+          count: { $sum: 1 },
+          valor: { $sum: { $ifNull: ["$valor", 0] } },
+        },
+      },
+    ]),
+  ]);
+  const by = Object.fromEntries(agg.map((a) => [a._id, a]));
+  const total = agg.reduce((acc, a) => acc + a.count, 0);
+  return {
+    data,
+    stats: {
+      total,
+      valorEstimado: round2(agg.reduce((acc, a) => acc + a.valor, 0)),
+      alto: by.alto?.count || 0,
+      medio: by.medio?.count || 0,
+      baixo: by.baixo?.count || 0,
+    },
+    pagination: paginationInfo(total, page, limit),
+  };
+});
 
-    // Verificar autenticação
-    const user = await getCurrentUser(request);
-    if (!user) {
-      return Response.json(
-        { error: "Usuário não autenticado" },
-        { status: 401 },
-      );
-    }
+export const POST = route(
+  "lista-compras:create",
+  async ({ request, user, body }) => {
+    const item = await FuturaCompra.create(normalize(await body()));
+    await audit(request, user, {
+      action: "CREATE",
+      model: "FuturaCompra",
+      documentId: item._id,
+      newData: item,
+    });
+    return Response.json(item, { status: 201 });
+  },
+);
 
-    // Verificar permissão de criação
-    if (!checkPermission(user, "lista-compras", "create")) {
-      return Response.json(
-        { error: "Acesso negado. Permissão insuficiente." },
-        { status: 403 },
-      );
-    }
+export const PUT = route(
+  "lista-compras:update",
+  async ({ request, user, body }) => {
+    const { id, ...data } = await body();
+    if (!id) throw badRequest("ID é obrigatório");
+    const item = await FuturaCompra.findById(toObjectId(id));
+    if (!item) throw notFound("Item não encontrado");
+    const previousData = item.toObject();
+    Object.assign(item, normalize(data, previousData));
+    await item.save();
+    await audit(request, user, {
+      action: "UPDATE",
+      model: "FuturaCompra",
+      documentId: id,
+      previousData,
+      newData: item,
+    });
+    return item;
+  },
+);
 
-    const data = await request.json();
-
-    // Extrair informações do usuário do corpo da requisição
-    const { userId, userName, ...futuraCompraData } = data;
-
-    const futura = await createFuturaCompra(futuraCompraData);
-
-    // Log de auditoria para criação
-    try {
-      await AuditService.createLog({
-        userId: user._id,
-        userName: user.name,
-        action: "CREATE",
-        model: "FuturaCompra",
-        documentId: futura._id,
-        newData: futura,
-        ipAddress:
-          request.headers.get("x-forwarded-for") ||
-          request.headers.get("x-real-ip") ||
-          "N/A",
-        userAgent: request.headers.get("user-agent") || "N/A",
-        metadata: { operation: "create_futuraCompra" },
-      });
-    } catch (auditError) {
-      console.error("Erro ao criar log de auditoria:", auditError);
-      // Não falhar a operação principal
-    }
-
-    return Response.json(futura);
-  } catch (error) {
-    console.error("Error in POST /api/futuraCompra:", error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
-
-export async function PUT(request) {
-  try {
-    await connectDB();
-
-    // Verificar autenticação
-    const user = await getCurrentUser(request);
-    if (!user) {
-      return Response.json(
-        { error: "Usuário não autenticado" },
-        { status: 401 },
-      );
-    }
-
-    // Verificar permissão de atualização
-    if (!checkPermission(user, "lista-compras", "update")) {
-      return Response.json(
-        { error: "Acesso negado. Permissão insuficiente." },
-        { status: 403 },
-      );
-    }
-
-    const { id, userId, userName, ...data } = await request.json();
-
-    // Buscar dados anteriores para auditoria
-    const previousData = await getFuturaCompraById(id);
-
-    const futura = await updateFuturaCompra(id, data);
-    if (!futura) return Response.json({ error: "Not found" }, { status: 404 });
-
-    // Log de auditoria para atualização
-    try {
-      const changedFields = AuditService.getChangedFields(previousData, futura);
-      await AuditService.createLog({
-        userId: user._id,
-        userName: user.name,
-        action: "UPDATE",
-        model: "FuturaCompra",
-        documentId: id,
-        previousData,
-        newData: futura,
-        changedFields,
-        ipAddress:
-          request.headers.get("x-forwarded-for") ||
-          request.headers.get("x-real-ip") ||
-          "N/A",
-        userAgent: request.headers.get("user-agent") || "N/A",
-        metadata: { operation: "update_futuraCompra" },
-      });
-    } catch (auditError) {
-      console.error("Erro ao criar log de auditoria:", auditError);
-      // Não falhar a operação principal
-    }
-
-    return Response.json(futura);
-  } catch (error) {
-    console.error("Error in PUT /api/futuraCompra:", error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
-
-export async function DELETE(request) {
-  try {
-    await connectDB();
-
-    // Verificar autenticação
-    const user = await getCurrentUser(request);
-    if (!user) {
-      return Response.json(
-        { error: "Usuário não autenticado" },
-        { status: 401 },
-      );
-    }
-
-    // Verificar permissão de exclusão
-    if (!checkPermission(user, "lista-compras", "delete")) {
-      return Response.json(
-        { error: "Acesso negado. Permissão insuficiente." },
-        { status: 403 },
-      );
-    }
-
-    // Tentar obter ID do corpo da requisição primeiro
-    let id;
-    try {
-      const body = await request.json();
-      id = body.id;
-    } catch (e) {
-      // Se não conseguir ler o corpo, tentar como parâmetro de query
-      const { searchParams } = new URL(request.url);
-      id = searchParams.get("id");
-    }
-
-    if (!id) {
-      return Response.json(
-        { error: "ID da compra futura é obrigatório" },
-        { status: 400 },
-      );
-    }
-
-    // Buscar dados antes da exclusão para auditoria
-    const previousData = await getFuturaCompraById(id);
-
-    const futura = await deleteFuturaCompra(id);
-    if (!futura) return Response.json({ error: "Not found" }, { status: 404 });
-
-    // Log de auditoria para exclusão
-    try {
-      await AuditService.createLog({
-        userId: user._id,
-        userName: user.name,
-        action: "DELETE",
-        model: "FuturaCompra",
-        documentId: id,
-        previousData,
-        ipAddress:
-          request.headers.get("x-forwarded-for") ||
-          request.headers.get("x-real-ip") ||
-          "N/A",
-        userAgent: request.headers.get("user-agent") || "N/A",
-        metadata: { operation: "delete_futuraCompra" },
-      });
-    } catch (auditError) {
-      console.error("Erro ao criar log de auditoria:", auditError);
-      // Não falhar a operação principal
-    }
-
-    return Response.json({ success: true });
-  } catch (error) {
-    console.error("Error in DELETE /api/futuraCompra:", error);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
+export const DELETE = route(
+  "lista-compras:delete",
+  async ({ request, user, body, searchParams }) => {
+    const id = searchParams.get("id") || (await body()).id;
+    if (!id) throw badRequest("ID é obrigatório");
+    const item = await FuturaCompra.findByIdAndDelete(toObjectId(id));
+    if (!item) throw notFound("Item não encontrado");
+    await audit(request, user, {
+      action: "DELETE",
+      model: "FuturaCompra",
+      documentId: id,
+      previousData: item,
+    });
+    return { success: true };
+  },
+);

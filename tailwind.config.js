@@ -1,3 +1,10 @@
+const brand = Object.fromEntries(
+  [50, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((s) => [
+    s,
+    `rgb(var(--brand-${s}) / <alpha-value>)`,
+  ]),
+);
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -14,18 +21,10 @@ module.exports = {
         sans: ["Inter", "system-ui", "sans-serif"],
       },
       colors: {
-        primary: {
-          50: "#eff6ff",
-          100: "#dbeafe",
-          200: "#bfdbfe",
-          300: "#93c5fd",
-          400: "#60a5fa",
-          500: "#3b82f6",
-          600: "#2563eb",
-          700: "#1d4ed8",
-          800: "#1e40af",
-          900: "#1e3a8a",
-        },
+        // Cor de destaque configurável (Configurações → Aparência).
+        // As classes blue-* e primary-* leem variáveis CSS definidas pelo tema.
+        blue: brand,
+        primary: brand,
       },
       animation: {
         float: "float 6s ease-in-out infinite",

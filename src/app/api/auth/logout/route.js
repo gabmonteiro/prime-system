@@ -1,17 +1,11 @@
-export async function POST(request) {
-  try {
-    // Aqui você pode implementar lógica de logout no servidor se necessário
-    // Por exemplo, invalidar tokens, limpar sessões, etc.
+import { SESSION_COOKIE } from "../../../../libs/session.js";
 
-    return Response.json({
-      success: true,
-      message: "Logout realizado com sucesso",
-    });
-  } catch (error) {
-    console.error("Erro no logout:", error);
-    return Response.json(
-      { success: false, error: "Erro interno do servidor" },
-      { status: 500 },
-    );
-  }
+export async function POST() {
+  const response = Response.json({ success: true });
+  response.headers.append(
+    "Set-Cookie",
+    `${SESSION_COOKIE}=; Path=/; Max-Age=0`,
+  );
+  response.headers.append("Set-Cookie", "user=; Path=/; Max-Age=0");
+  return response;
 }

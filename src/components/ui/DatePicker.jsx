@@ -170,7 +170,7 @@ export default function DatePicker({
           </div>
 
           <div className="grid grid-cols-7 gap-1 text-xs text-gray-500 mb-1">
-            {"DSTQQSS".split("").map((d, i) => (
+            {["S", "T", "Q", "Q", "S", "S", "D"].map((d, i) => (
               <div key={i} className="text-center py-1">
                 {d}
               </div>

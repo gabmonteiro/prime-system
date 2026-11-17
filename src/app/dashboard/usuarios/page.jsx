@@ -1,603 +1,338 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useAuth } from "../../../context/authContext";
-import { useRouter } from "next/navigation";
-import DashboardLayout from "../DashboardLayout";
-import Modal from "../../../components/ui/Modal";
-import Pagination from "../../../components/ui/Pagination";
+import { useEffect, useState } from "react";
 import {
+  UserGroupIcon,
   PlusIcon,
   PencilIcon,
   TrashIcon,
-  EyeIcon,
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
-  XMarkIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  MagnifyingGlassIcon,
-  UserIcon,
   ShieldCheckIcon,
+  CheckCircleIcon,
+  NoSymbolIcon,
 } from "@heroicons/react/24/outline";
+import DashboardLayout from "../DashboardLayout";
+import { useAuth } from "../../../context/authContext";
+import PageHeader from "../../../components/ui/PageHeader";
+import StatCard from "../../../components/ui/StatCard";
+import FilterBar, { SearchInput } from "../../../components/ui/FilterBar";
+import Select from "../../../components/ui/Select";
+import Modal from "../../../components/ui/Modal";
+import Badge from "../../../components/ui/Badge";
+import Field, { inputClass, Toggle } from "../../../components/ui/Field";
+import ConfirmDialog from "../../../components/ui/ConfirmDialog";
+import { EmptyState, LoadingState } from "../../../components/ui/States";
+import { useToast } from "../../../components/ui/Toast";
+import { FormButtons } from "../../../components/clientes/ClienteFormModal";
+import useApiList, { useFilters } from "../../../hooks/useApiList";
+import { api } from "../../../libs/fetcher";
+import {
+  ROLES,
+  ROLE_LABELS,
+  getFormattedPermissions,
+} from "../../../libs/permissions";
+
+const ROLE_COLOR = {
+  admin: "red",
+  gerente: "purple",
+  funcionario: "blue",
+  visualizador: "gray",
+};
 
 export default function UsuariosPage() {
-  const [usuarios, setUsuarios] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "funcionario",
+  const { user, isAdmin, hasPermission } = useAuth();
+  const toast = useToast();
+  const { filters, setFilter, clear, activeCount } = useFilters({
+    q: "",
+    role: "",
+    status: "",
   });
-  const [toastState, setToastState] = useState({
-    show: false,
-    message: "",
-    type: "success",
-  });
+  const { data, loading, reload } = useApiList("/api/user", filters);
+  const [modal, setModal] = useState({ open: false, usuario: null });
+  const [toDelete, setToDelete] = useState(null);
 
-  const { user, hasPermission } = useAuth();
-  const router = useRouter();
+  const ativos = data.filter((u) => u.isActive !== false).length;
+  const canManage = (u) => isAdmin || u.role !== "admin";
 
-  // Show toast notification
-  const showToast = (message, type = "success") => {
-    setToastState({ show: true, message, type });
-    setTimeout(() => {
-      setToastState((prev) => ({ ...prev, show: false }));
-    }, 4000);
-  };
-
-  useEffect(() => {
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-    if (user && !hasPermission("usuarios", "read")) {
-      router.push("/dashboard");
-      return;
-    }
-    if (user && hasPermission("usuarios", "read")) {
-      fetchData();
-    }
-  }, [user, router, hasPermission]);
-
-  async function fetchData() {
+  async function confirmDelete() {
     try {
-      setIsLoading(true);
-      const response = await fetch("/api/user");
-      const data = await response.json();
-
-      if (response.ok) {
-        // Aceita tanto array direto quanto objeto { users: [...] }
-        const usersArray = Array.isArray(data) ? data : data.users || [];
-        console.log("🔍 Debug fetchData:", {
-          responseOk: response.ok,
-          dataType: typeof data,
-          isArray: Array.isArray(data),
-          usersArrayLength: usersArray.length,
-          firstUser: usersArray[0],
-          firstUserId: usersArray[0]?._id,
-        });
-
-        // Os usuários já vêm ordenados da API por data de criação (mais recente primeiro)
-        setUsuarios(usersArray);
-      } else {
-        throw new Error(data.error || "Erro ao carregar usuários");
-      }
-    } catch (error) {
-      console.error("Erro ao carregar usuários:", error);
-      showToast("Erro ao carregar usuários: " + error.message, "error");
-    } finally {
-      setIsLoading(false);
+      await api("/api/user", { method: "DELETE", body: { id: toDelete._id } });
+      toast("Usuário excluído!");
+      setToDelete(null);
+      reload();
+    } catch (err) {
+      toast(err.message, "error");
+      setToDelete(null);
     }
-  }
-
-  function handleInputChange(e) {
-    const { name, value, type, checked } = e.target;
-    setForm({
-      ...form,
-      [name]: type === "checkbox" ? checked : value,
-    });
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      const payload = {
-        ...form,
-        // Adicionar informações do usuário para auditoria
-        userId: user?._id || "system",
-        userName: user?.name || "Sistema",
-      };
-
-      // Se estiver editando e a senha estiver vazia, remover o campo
-      if (editId && (!payload.password || payload.password.trim() === "")) {
-        delete payload.password;
-      }
-
-      const url = "/api/user";
-      const method = editId ? "PUT" : "POST";
-      const body = editId ? { id: editId, ...payload } : payload;
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao processar requisição");
-      }
-
-      closeModal();
-      fetchData();
-      showToast(
-        editId
-          ? "Usuário atualizado com sucesso!"
-          : "Usuário criado com sucesso!",
-        "success",
-      );
-    } catch (error) {
-      console.error("Erro ao salvar usuário:", error);
-      showToast("Erro ao salvar usuário: " + error.message, "error");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  function handleEdit(usuario) {
-    setForm({
-      name: usuario.name || "",
-      email: usuario.email || "",
-      password: "", // Não carregar senha existente
-      role: usuario.role || "funcionario",
-    });
-    setEditId(usuario._id);
-    setModalOpen(true);
-  }
-
-  async function handleDelete(id) {
-    if (window.confirm("Tem certeza que deseja excluir este usuário?")) {
-      try {
-        const response = await fetch("/api/user", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id,
-            // Adicionar informações do usuário para auditoria
-            userId: user?._id || "system",
-            userName: user?.name || "Sistema",
-          }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || "Erro ao deletar usuário");
-        }
-
-        fetchData();
-        showToast("Usuário excluído com sucesso!", "success");
-      } catch (error) {
-        console.error("Erro ao excluir usuário:", error);
-        showToast("Erro ao excluir usuário: " + error.message, "error");
-      }
-    }
-  }
-
-  function openModal() {
-    setForm({ name: "", email: "", password: "", role: "funcionario" });
-    setEditId(null);
-    setModalOpen(true);
-  }
-
-  function closeModal() {
-    setModalOpen(false);
-    setForm({ name: "", email: "", password: "", role: "funcionario" });
-    setEditId(null);
-  }
-
-  // Paginação
-  const totalPages = Math.ceil(usuarios.length / itemsPerPage);
-  const currentUsuarios = usuarios.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
-
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-  };
-
-  if (!user || !hasPermission("usuarios", "read")) {
-    return (
-      <DashboardLayout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Acesso Negado
-            </h2>
-            <p className="text-gray-600">
-              Você não tem permissão para acessar esta página.
-            </p>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
   }
 
   return (
-    <DashboardLayout>
-      <div className="p-6">
-        {/* Toast Notification */}
-        {toastState.show && (
-          <div
-            className={`fixed top-4 right-4 z-50 max-w-sm w-full sm:right-4 sm:left-auto sm:translate-x-0 left-1/2 -translate-x-1/2 ${
-              toastState.type === "success" ? "bg-green-500" : "bg-red-500"
-            } text-white p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out`}
+    <DashboardLayout permission="usuarios:read">
+      <PageHeader
+        icon={UserGroupIcon}
+        color="indigo"
+        title="Usuários"
+        subtitle="Quem acessa o sistema e o que pode fazer"
+      >
+        {hasPermission("usuarios", "create") && (
+          <button
+            onClick={() => setModal({ open: true, usuario: null })}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700"
           >
-            <div className="flex items-center">
-              <span className="flex-1">{toastState.message}</span>
-              <button
-                onClick={() =>
-                  setToastState((prev) => ({ ...prev, show: false }))
-                }
-                className="ml-2 text-white hover:text-gray-200"
+            <PlusIcon className="h-5 w-5 mr-2" /> Novo Usuário
+          </button>
+        )}
+      </PageHeader>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-4 sm:mb-6">
+        <StatCard
+          icon={UserGroupIcon}
+          color="indigo"
+          label="Usuários"
+          value={data.length}
+        />
+        <StatCard
+          icon={CheckCircleIcon}
+          color="green"
+          label="Ativos"
+          value={ativos}
+        />
+        <StatCard
+          icon={NoSymbolIcon}
+          color="gray"
+          label="Inativos"
+          value={data.length - ativos}
+        />
+        <StatCard
+          icon={ShieldCheckIcon}
+          color="red"
+          label="Administradores"
+          value={data.filter((u) => u.role === "admin").length}
+        />
+      </div>
+
+      <FilterBar onClear={clear} activeCount={activeCount}>
+        <SearchInput
+          value={filters.q}
+          onChange={(v) => setFilter("q", v)}
+          placeholder="Nome ou email"
+        />
+        <Select
+          value={filters.role}
+          onChange={(v) => setFilter("role", v)}
+          options={[
+            { value: "", label: "Todos os perfis" },
+            ...ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] })),
+          ]}
+        />
+        <Select
+          value={filters.status}
+          onChange={(v) => setFilter("status", v)}
+          options={[
+            { value: "", label: "Ativos e inativos" },
+            { value: "ativo", label: "Ativos" },
+            { value: "inativo", label: "Inativos" },
+          ]}
+        />
+      </FilterBar>
+
+      <div className="bg-white rounded-lg shadow-sm">
+        {loading && data.length === 0 ? (
+          <LoadingState />
+        ) : data.length === 0 ? (
+          <EmptyState icon={UserGroupIcon} title="Nenhum usuário encontrado" />
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {data.map((u) => (
+              <li
+                key={u._id}
+                className={`px-4 sm:px-6 py-3 flex items-center gap-3 ${u.isActive === false ? "opacity-60" : ""}`}
               >
-                ×
-              </button>
-            </div>
+                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                  <span className="text-blue-700 font-semibold">
+                    {u.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-gray-900">{u.name}</span>
+                    {String(u._id) === String(user?._id) && (
+                      <span className="text-xs text-gray-500">(você)</span>
+                    )}
+                    <Badge color={ROLE_COLOR[u.role]}>
+                      {ROLE_LABELS[u.role]}
+                    </Badge>
+                    {u.isActive === false && <Badge>inativo</Badge>}
+                  </div>
+                  <p className="text-sm text-gray-500 truncate">{u.email}</p>
+                </div>
+                <div className="flex shrink-0">
+                  {hasPermission("usuarios", "update") && canManage(u) && (
+                    <button
+                      onClick={() => setModal({ open: true, usuario: u })}
+                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-full"
+                      title="Editar"
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                    </button>
+                  )}
+                  {hasPermission("usuarios", "delete") &&
+                    canManage(u) &&
+                    String(u._id) !== String(user?._id) && (
+                      <button
+                        onClick={() => setToDelete(u)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-full"
+                        title="Excluir"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <UsuarioModal
+        isOpen={modal.open}
+        usuario={modal.usuario}
+        isAdmin={isAdmin}
+        self={user}
+        onClose={() => setModal({ open: false, usuario: null })}
+        onSaved={reload}
+      />
+      <ConfirmDialog
+        isOpen={!!toDelete}
+        onClose={() => setToDelete(null)}
+        onConfirm={confirmDelete}
+        danger
+        title="Excluir usuário"
+        confirmLabel="Excluir"
+        message={
+          toDelete &&
+          `Excluir ${toDelete.name}? Para manter o histórico nos serviços, prefira desativar o usuário.`
+        }
+      />
+    </DashboardLayout>
+  );
+}
+
+function UsuarioModal({ isOpen, usuario, isAdmin, self, onClose, onSaved }) {
+  const toast = useToast();
+  const [form, setForm] = useState({});
+  const [saving, setSaving] = useState(false);
+  const isSelf = usuario && String(usuario._id) === String(self?._id);
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        name: usuario?.name || "",
+        email: usuario?.email || "",
+        password: "",
+        role: usuario?.role || "funcionario",
+        isActive: usuario?.isActive !== false,
+      });
+    }
+  }, [isOpen, usuario]);
+
+  const roles = ROLES.filter((r) => isAdmin || r !== "admin");
+
+  async function submit(e) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const body = { ...form };
+      if (usuario && !body.password) delete body.password;
+      if (usuario)
+        await api("/api/user", {
+          method: "PUT",
+          body: { id: usuario._id, ...body },
+        });
+      else await api("/api/user", { method: "POST", body });
+      toast(usuario ? "Usuário atualizado!" : "Usuário criado!");
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={usuario ? "Editar Usuário" : "Novo Usuário"}
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <Field label="Nome" htmlFor="nameU">
+          <input
+            id="nameU"
+            required
+            className={inputClass}
+            value={form.name || ""}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+        </Field>
+        <Field label="Email" htmlFor="emailU">
+          <input
+            id="emailU"
+            type="email"
+            required
+            className={inputClass}
+            value={form.email || ""}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+        </Field>
+        <Field
+          label={usuario ? "Nova senha (deixe vazio para manter)" : "Senha"}
+          htmlFor="passU"
+        >
+          <input
+            id="passU"
+            type="password"
+            minLength={6}
+            required={!usuario}
+            autoComplete="new-password"
+            className={inputClass}
+            value={form.password || ""}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
+        </Field>
+        <Field
+          label="Perfil"
+          hint={
+            isSelf ? "Você não pode alterar o seu próprio perfil" : undefined
+          }
+        >
+          <Select
+            value={form.role}
+            disabled={isSelf}
+            onChange={(v) => setForm({ ...form, role: v })}
+            options={roles.map((r) => ({ value: r, label: ROLE_LABELS[r] }))}
+          />
+        </Field>
+        {form.role && (
+          <div className="text-xs text-gray-600 bg-gray-50 rounded-lg p-3 max-h-32 overflow-auto">
+            {getFormattedPermissions(form.role)
+              .map((p) => p.description)
+              .join(" · ")}
           </div>
         )}
-
-        <div className="w-full mx-auto">
-          {/* Header */}
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <UserIcon className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    Gerenciar Usuários
-                  </h1>
-                  <p className="text-gray-600">
-                    Administre usuários do sistema
-                  </p>
-                </div>
-              </div>
-              {hasPermission("usuarios", "create") && (
-                <button
-                  onClick={openModal}
-                  className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <PlusIcon className="h-5 w-5 mr-2" />
-                  Novo Usuário
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="bg-white rounded-lg shadow-sm">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-gray-600">Carregando usuários...</span>
-                </div>
-              </div>
-            ) : usuarios.length === 0 ? (
-              <div className="text-center py-12">
-                <UserIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Nenhum usuário encontrado
-                </h3>
-                <p className="text-gray-600">
-                  Comece criando o primeiro usuário do sistema.
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-hidden">
-                {/* Mobile Card View */}
-                <div className="block sm:hidden">
-                  <div className="p-4 space-y-4">
-                    {currentUsuarios.map((usuario) => (
-                      <div
-                        key={usuario._id}
-                        className="bg-gray-50 rounded-lg shadow-md border border-gray-200 p-4"
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-blue-100 rounded-full">
-                              <UserIcon className="h-4 w-4 text-blue-600" />
-                            </div>
-                            <div>
-                              <h3 className="font-medium text-gray-900">
-                                {usuario.name}
-                              </h3>
-                              <p className="text-sm text-gray-600">
-                                {usuario.email}
-                              </p>
-                            </div>
-                          </div>
-                          {usuario.role === "admin" && (
-                            <span className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
-                              <ShieldCheckIcon className="h-3 w-3 mr-1" />
-                              Admin
-                            </span>
-                          )}
-                        </div>
-                        {hasPermission("usuarios", "update") && (
-                          <button
-                            onClick={() => handleEdit(usuario)}
-                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
-                          >
-                            <PencilIcon className="h-4 w-4 mr-1" />
-                            Editar
-                          </button>
-                        )}
-                        {hasPermission("usuarios", "delete") && (
-                          <button
-                            onClick={() => handleDelete(usuario._id)}
-                            className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
-                          >
-                            <TrashIcon className="h-4 w-4 mr-1" />
-                            Excluir
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Desktop Table View */}
-                <div className="hidden sm:block">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Usuário
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Email
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tipo
-                        </th>
-                        {(hasPermission("usuarios", "update") || hasPermission("usuarios", "delete")) && (
-                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Ações
-                          </th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {currentUsuarios.map((usuario) => (
-                        <tr key={usuario._id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10">
-                                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                  <UserIcon className="h-6 w-6 text-blue-600" />
-                                </div>
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {usuario.name}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {usuario.email}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {usuario.role === "admin" ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                <ShieldCheckIcon className="h-3 w-3 mr-1" />
-                                Administrador
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                <UserIcon className="h-3 w-3 mr-1" />
-                                {usuario.role === "gerente"
-                                  ? "Gerente"
-                                  : usuario.role === "funcionario"
-                                    ? "Funcionário"
-                                    : usuario.role === "visualizador"
-                                      ? "Visualizador"
-                                      : "Usuário"}
-                              </span>
-                            )}
-                          </td>
-                          {hasPermission("usuarios", "update") || hasPermission("usuarios", "delete") ? (
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <div className="flex items-center justify-end space-x-2">
-                                {hasPermission("usuarios", "update") && (
-                                  <button
-                                    onClick={() => handleEdit(usuario)}
-                                    className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50"
-                                    title="Editar usuário"
-                                  >
-                                    <PencilIcon className="h-4 w-4" />
-                                  </button>
-                                )}
-                                {hasPermission("usuarios", "delete") && (
-                                  <button
-                                    onClick={() => handleDelete(usuario._id)}
-                                    className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50"
-                                    title="Excluir usuário"
-                                  >
-                                    <TrashIcon className="h-4 w-4" />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          ) : null}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Paginação */}
-                {usuarios.length > 0 && (
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={handlePageChange}
-                    itemsPerPage={itemsPerPage}
-                    totalItems={usuarios.length}
-                  />
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Modal */}
-        <Modal
-          isOpen={modalOpen}
-          onClose={closeModal}
-          title={editId ? "Editar Usuário" : "Novo Usuário"}
-        >
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 gap-6">
-              <div>
-                <label
-                  htmlFor="name"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Nome Completo
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={form.name}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                  placeholder="Digite o nome completo"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Email
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={form.email}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                  placeholder="Digite o email"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  {editId
-                    ? "Nova Senha (deixe em branco para manter a atual)"
-                    : "Senha"}
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  value={form.password}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required={!editId}
-                  placeholder={
-                    editId
-                      ? "Deixe em branco para não alterar"
-                      : "Digite a senha"
-                  }
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="role"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Role
-                </label>
-                <select
-                  id="role"
-                  name="role"
-                  value={form.role}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                >
-                  <option value="funcionario">Funcionário</option>
-                  <option value="visualizador">Visualizador</option>
-                  <option value="gerente">Gerente</option>
-                  <option value="admin">Administrador</option>
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  {form.role === "admin" &&
-                    "Administradores têm acesso completo ao sistema"}
-                  {form.role === "gerente" &&
-                    "Gerentes têm acesso amplo para gerenciar operações"}
-                  {form.role === "funcionario" &&
-                    "Funcionários têm acesso básico para operações do dia a dia"}
-                  {form.role === "visualizador" &&
-                    "Visualizadores têm acesso apenas para consultas"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex space-x-3 pt-6 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={closeModal}
-                className="btn-secondary flex-1"
-                disabled={isLoading}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="btn-primary flex-1"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <span className="flex items-center justify-center">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Salvando...
-                  </span>
-                ) : (
-                  `${editId ? "Atualizar" : "Criar"} Usuário`
-                )}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      </div>
-    </DashboardLayout>
+        {usuario && !isSelf && (
+          <Toggle
+            checked={form.isActive}
+            onChange={(v) => setForm({ ...form, isActive: v })}
+            labelOn="Ativo"
+            labelOff="Inativo (não consegue entrar)"
+          />
+        )}
+        <FormButtons
+          onCancel={onClose}
+          saving={saving}
+          label={usuario ? "Salvar" : "Criar"}
+        />
+      </form>
+    </Modal>
   );
 }

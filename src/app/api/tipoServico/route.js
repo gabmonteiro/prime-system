@@ -1,287 +1,110 @@
 import {
-  createTipoServico,
-  getTipoServicos,
-  getTipoServicoById,
-  updateTipoServico,
-  deleteTipoServico,
-} from "../../../services/tipoServicoService.js";
-import connectDB from "../../../libs/db.js";
-import { AuditService } from "../../../services/auditService.js";
-import { checkPermission } from "../../../services/permissionService.js";
-import { UserService } from "../../../services/userService.js";
+  route,
+  audit,
+  badRequest,
+  notFound,
+  searchRegex,
+  toObjectId,
+} from "../../../libs/api.js";
+import TipoServico from "../../../models/tipoServico.js";
+import Servico from "../../../models/servico.js";
+import { round2 } from "../../../libs/money.js";
 
-// Função para obter usuário atual baseado no cookie de autenticação
-async function getCurrentUser(request) {
-  try {
-    const cookieHeader = request.headers.get("cookie");
-
-    if (!cookieHeader) {
-      return null;
-    }
-
-    // Extrair o userId do cookie 'user'
-    const cookies = cookieHeader.split(";").reduce((acc, cookie) => {
-      const [key, value] = cookie.trim().split("=");
-      acc[key] = value;
-      return acc;
-    }, {});
-
-    const userId = cookies.user;
-
-    if (!userId) {
-      return null;
-    }
-
-    // Buscar usuário no banco
-    const user = await UserService.getUserById(userId);
-    return user;
-  } catch (error) {
-    console.error("Erro ao obter usuário atual:", error);
-    return null;
-  }
+function normalize(data, current = {}) {
+  const nome = (data.nome ?? current.nome ?? "").trim();
+  if (!nome) throw badRequest("Nome é obrigatório");
+  const valor = round2(data.valor ?? current.valor);
+  if (!(valor >= 0)) throw badRequest("Valor inválido");
+  return { nome, valor, desc: (data.desc ?? current.desc ?? "").trim() };
 }
 
-export async function GET(request) {
-  try {
-    await connectDB();
-
-    // Verificar autenticação
-    const user = await getCurrentUser(request);
-    if (!user) {
-      return Response.json(
-        { error: "Usuário não autenticado" },
-        { status: 401 },
-      );
-    }
-
-    // Verificar permissão de leitura
-    if (!checkPermission(user, "tipos-servicos", "read")) {
-      return Response.json(
-        { error: "Acesso negado. Permissão insuficiente." },
-        { status: 403 },
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-    if (id) {
-      const tipoServico = await getTipoServicoById(id);
-      if (!tipoServico)
-        return Response.json({ error: "Not found" }, { status: 404 });
-      return Response.json(tipoServico);
-    }
-    const tipoServicos = await getTipoServicos();
-    // Garantir que sempre retorna um array
-    const result = Array.isArray(tipoServicos) ? tipoServicos : [];
-    return Response.json(result);
-  } catch (error) {
-    console.error("Error in GET /api/tipoServico:", error);
-    return Response.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 },
-    );
+export const GET = route("tipos-servicos:read", async ({ searchParams }) => {
+  const id = searchParams.get("id");
+  if (id) {
+    const tipo = await TipoServico.findById(toObjectId(id)).lean();
+    if (!tipo) throw notFound("Tipo de serviço não encontrado");
+    return tipo;
   }
-}
+  const filter = {};
+  const rx = searchRegex(searchParams.get("q"));
+  if (rx) filter.$or = [{ nome: rx }, { desc: rx }];
 
-export async function POST(request) {
-  try {
-    await connectDB();
+  const [tipos, uso] = await Promise.all([
+    TipoServico.find(filter).sort({ nome: 1 }).lean(),
+    Servico.aggregate([
+      { $match: { tipoServico: { $ne: null } } },
+      {
+        $group: {
+          _id: "$tipoServico",
+          quantidade: { $sum: 1 },
+          valor: { $sum: { $ifNull: ["$valorTotal", 0] } },
+        },
+      },
+    ]),
+  ]);
+  const usoById = new Map(uso.map((u) => [String(u._id), u]));
+  return tipos.map((t) => ({
+    ...t,
+    quantidade: usoById.get(String(t._id))?.quantidade || 0,
+    faturado: round2(usoById.get(String(t._id))?.valor || 0),
+  }));
+});
 
-    // Verificar autenticação
-    const user = await getCurrentUser(request);
-    if (!user) {
-      return Response.json(
-        { error: "Usuário não autenticado" },
-        { status: 401 },
+export const POST = route(
+  "tipos-servicos:create",
+  async ({ request, user, body }) => {
+    const tipo = await TipoServico.create(normalize(await body()));
+    await audit(request, user, {
+      action: "CREATE",
+      model: "TipoServico",
+      documentId: tipo._id,
+      newData: tipo,
+    });
+    return Response.json(tipo, { status: 201 });
+  },
+);
+
+export const PUT = route(
+  "tipos-servicos:update",
+  async ({ request, user, body }) => {
+    const { id, ...data } = await body();
+    if (!id) throw badRequest("ID é obrigatório");
+    const tipo = await TipoServico.findById(toObjectId(id));
+    if (!tipo) throw notFound("Tipo de serviço não encontrado");
+    const previousData = tipo.toObject();
+    Object.assign(tipo, normalize(data, previousData));
+    await tipo.save();
+    await audit(request, user, {
+      action: "UPDATE",
+      model: "TipoServico",
+      documentId: id,
+      previousData,
+      newData: tipo,
+    });
+    return tipo;
+  },
+);
+
+export const DELETE = route(
+  "tipos-servicos:delete",
+  async ({ request, user, body, searchParams }) => {
+    const id = searchParams.get("id") || (await body()).id;
+    if (!id) throw badRequest("ID é obrigatório");
+    const _id = toObjectId(id);
+    const emUso = await Servico.countDocuments({ tipoServico: _id });
+    if (emUso > 0) {
+      throw badRequest(
+        `Este tipo está em ${emUso} serviço(s) e não pode ser excluído.`,
       );
     }
-
-    // Verificar permissão de criação
-    if (!checkPermission(user, "tipos-servicos", "create")) {
-      return Response.json(
-        { error: "Acesso negado. Permissão insuficiente." },
-        { status: 403 },
-      );
-    }
-
-    const data = await request.json();
-
-    // Extrair informações do usuário do corpo da requisição
-    const { userId, userName, ...tipoServicoData } = data;
-
-    const tipoServico = await createTipoServico(tipoServicoData);
-
-    // Log de auditoria para criação
-    try {
-      await AuditService.createLog({
-        userId: user._id,
-        userName: user.name,
-        action: "CREATE",
-        model: "TipoServico",
-        documentId: tipoServico._id,
-        newData: tipoServico,
-        ipAddress:
-          request.headers.get("x-forwarded-for") ||
-          request.headers.get("x-real-ip") ||
-          "N/A",
-        userAgent: request.headers.get("user-agent") || "N/A",
-        metadata: { operation: "create_tipoServico" },
-      });
-    } catch (auditError) {
-      console.error("Erro ao criar log de auditoria:", auditError);
-      // Não falhar a operação principal
-    }
-
-    return Response.json(tipoServico);
-  } catch (error) {
-    console.error("Error in POST /api/tipoServico:", error);
-    return Response.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
-
-export async function PUT(request) {
-  try {
-    await connectDB();
-
-    // Verificar autenticação
-    const user = await getCurrentUser(request);
-    if (!user) {
-      return Response.json(
-        { error: "Usuário não autenticado" },
-        { status: 401 },
-      );
-    }
-
-    // Verificar permissão de atualização
-    if (!checkPermission(user, "tipos-servicos", "update")) {
-      return Response.json(
-        { error: "Acesso negado. Permissão insuficiente." },
-        { status: 403 },
-      );
-    }
-
-    const { id, userId, userName, ...data } = await request.json();
-
-    // Buscar dados anteriores para auditoria
-    const previousData = await getTipoServicoById(id);
-
-    const tipoServico = await updateTipoServico(id, data);
-    if (!tipoServico)
-      return Response.json({ error: "Not found" }, { status: 404 });
-
-    // Log de auditoria para atualização
-    try {
-      const changedFields = AuditService.getChangedFields(
-        previousData,
-        tipoServico,
-      );
-      await AuditService.createLog({
-        userId: user._id,
-        userName: user.name,
-        action: "UPDATE",
-        model: "TipoServico",
-        documentId: id,
-        previousData,
-        newData: tipoServico,
-        changedFields,
-        ipAddress:
-          request.headers.get("x-forwarded-for") ||
-          request.headers.get("x-real-ip") ||
-          "N/A",
-        userAgent: request.headers.get("user-agent") || "N/A",
-        metadata: { operation: "update_tipoServico" },
-      });
-    } catch (auditError) {
-      console.error("Erro ao criar log de auditoria:", auditError);
-      // Não falhar a operação principal
-    }
-
-    return Response.json(tipoServico);
-  } catch (error) {
-    console.error("Error in PUT /api/tipoServico:", error);
-    return Response.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
-
-export async function DELETE(request) {
-  try {
-    await connectDB();
-
-    // Verificar autenticação
-    const user = await getCurrentUser(request);
-    if (!user) {
-      return Response.json(
-        { error: "Usuário não autenticado" },
-        { status: 401 },
-      );
-    }
-
-    // Verificar permissão de exclusão
-    if (!checkPermission(user, "tipos-servicos", "delete")) {
-      return Response.json(
-        { error: "Acesso negado. Permissão insuficiente." },
-        { status: 403 },
-      );
-    }
-
-    // Tentar obter ID do corpo da requisição primeiro
-    let id;
-    try {
-      const body = await request.json();
-      id = body.id;
-    } catch (e) {
-      // Se não conseguir ler o corpo, tentar como parâmetro de query
-      const { searchParams } = new URL(request.url);
-      id = searchParams.get("id");
-    }
-
-    if (!id) {
-      return Response.json(
-        { error: "ID do tipo de serviço é obrigatório" },
-        { status: 400 },
-      );
-    }
-
-    // Buscar dados antes da exclusão para auditoria
-    const previousData = await getTipoServicoById(id);
-
-    const tipoServico = await deleteTipoServico(id);
-    if (!tipoServico)
-      return Response.json({ error: "Not found" }, { status: 404 });
-
-    // Log de auditoria para exclusão
-    try {
-      await AuditService.createLog({
-        userId: user._id,
-        userName: user.name,
-        action: "DELETE",
-        model: "TipoServico",
-        documentId: id,
-        previousData,
-        ipAddress:
-          request.headers.get("x-forwarded-for") ||
-          request.headers.get("x-real-ip") ||
-          "N/A",
-        userAgent: request.headers.get("user-agent") || "N/A",
-        metadata: { operation: "delete_tipoServico" },
-      });
-    } catch (auditError) {
-      console.error("Erro ao criar log de auditoria:", auditError);
-      // Não falhar a operação principal
-    }
-
-    return Response.json({ success: true });
-  } catch (error) {
-    console.error("Error in DELETE /api/tipoServico:", error);
-    return Response.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+    const tipo = await TipoServico.findByIdAndDelete(_id);
+    if (!tipo) throw notFound("Tipo de serviço não encontrado");
+    await audit(request, user, {
+      action: "DELETE",
+      model: "TipoServico",
+      documentId: id,
+      previousData: tipo,
+    });
+    return { success: true };
+  },
+);

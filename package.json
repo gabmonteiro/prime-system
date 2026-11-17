@@ -1,39 +1,47 @@
 {
   "name": "prime-system",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "quality": "npm run lint:fix && npm run prettier:fix && npm run lint && npm run prettier:check",
-    "lint": "next lint",
-    "lint:fix": "next lint --fix",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "prettier:fix": "prettier --write .",
     "prettier:check": "prettier --check .",
-    "seed": "node seedDatabase.js"
+    "seed": "node seedDatabase.mjs",
+    "migrate": "node scripts/migrate-v2.mjs"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "bcryptjs": "^3.0.2",
     "chart.js": "^4.5.0",
     "dotenv": "^17.2.0",
-    "lint": "^0.8.19",
+    "jose": "^6.2.17",
     "mongoose": "^8.16.4",
-    "next": "^15.4.3",
-    "prettier": "^3.6.2",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "react-icons": "^5.5.0"
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",
     "autoprefixer": "^10.4.21",
     "eslint": "^9",
-    "eslint-config-next": "15.4.3",
-    "postcss": "^8.5.6",
+    "eslint-config-next": "^16.4.6",
+    "postcss": "^8.5.33",
+    "prettier": "^3.10.1",
     "tailwindcss": "^3.4.17"
+  },
+  "overrides": {
+    "@tailwindcss/typography": {
+      "postcss-selector-parser": "^6.1.5"
+    },
+    "postcss": "$postcss",
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.8"
+    }
   }
 }

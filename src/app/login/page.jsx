@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/authContext";
+import { BrandLogo } from "../../context/brandingContext";
 
 import {
   LockClosedIcon,
@@ -10,7 +11,6 @@ import {
   ExclamationTriangleIcon,
   ShieldCheckIcon,
   ArrowRightIcon,
-  ChartBarIcon,
 } from "@heroicons/react/24/outline";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
 
@@ -18,23 +18,23 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [isFormFocused, setIsFormFocused] = useState(false);
+  const [, setIsFormFocused] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message: string }
   const router = useRouter();
   const { login, error, loading, user } = useAuth();
 
   useEffect(() => {
-    // Carrega dados salvos se lembrar de mim estiver ativo
-    const saved = localStorage.getItem("prime-login");
-    if (saved) {
-      try {
-        const { email, password } = JSON.parse(saved);
-        setEmail(email || "");
-        setPassword(password || "");
+    // "Lembrar de mim" guarda apenas o email (a v1 guardava a senha: removido)
+    try {
+      localStorage.removeItem("prime-login");
+      localStorage.removeItem("user");
+      const savedEmail = localStorage.getItem("prime-email");
+      if (savedEmail) {
+        setEmail(savedEmail);
         setRememberMe(true);
-      } catch {}
-    }
+      }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -45,11 +45,10 @@ export default function LoginPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (rememberMe) {
-      localStorage.setItem("prime-login", JSON.stringify({ email, password }));
-    } else {
-      localStorage.removeItem("prime-login");
-    }
+    try {
+      if (rememberMe) localStorage.setItem("prime-email", email);
+      else localStorage.removeItem("prime-email");
+    } catch {}
     const result = await login(email, password);
     if (result === true) {
       setToast({ type: "success", message: "Login realizado com sucesso!" });
@@ -63,7 +62,6 @@ export default function LoginPage() {
       });
     }
     setTimeout(() => setToast(null), 3500);
-    console.log("Resultado login:", result);
   }
 
   return (
@@ -98,11 +96,8 @@ export default function LoginPage() {
           {/* Header */}
           <div className="text-center mb-8">
             {/* Logo */}
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl mb-6 shadow-medium animate-slideInDown">
-              <ChartBarIcon
-                className="text-white"
-                style={{ width: "32px", height: "32px" }}
-              />
+            <div className="inline-flex mb-6 animate-slideInDown">
+              <BrandLogo size="lg" />
             </div>
 
             <h1 className="text-3xl font-bold text-gradient-primary mb-2 animate-slideInUp">
@@ -219,12 +214,9 @@ export default function LoginPage() {
                   Lembrar de mim
                 </span>
               </label>
-              <a
-                href="/forgot-password"
-                className="text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
-              >
-                Esqueceu a senha?
-              </a>
+              <span className="text-xs text-gray-500">
+                Esqueceu a senha? Fale com o administrador.
+              </span>
             </div>
 
             {/* Submit Button */}
@@ -277,32 +269,6 @@ export default function LoginPage() {
                 Dados protegidos com criptografia
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Additional Info */}
-        <div
-          className="mt-8 text-center animate-slideInUp"
-          style={{ animationDelay: "0.8s" }}
-        >
-          <div className="flex items-center justify-center space-x-6 text-xs text-gray-500">
-            <a href="/terms" className="hover:text-blue-600 transition-colors">
-              Termos de Uso
-            </a>
-            <span>•</span>
-            <a
-              href="/privacy"
-              className="hover:text-blue-600 transition-colors"
-            >
-              Privacidade
-            </a>
-            <span>•</span>
-            <a
-              href="/support"
-              className="hover:text-blue-600 transition-colors"
-            >
-              Suporte
-            </a>
           </div>
         </div>
       </div>

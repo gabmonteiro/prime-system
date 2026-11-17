@@ -7,7 +7,7 @@ export default function Pagination({
   itemsPerPage = 10,
   totalItems,
 }) {
-  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const startItem = totalItems ? (currentPage - 1) * itemsPerPage + 1 : 0;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
   const getVisiblePages = () => {
@@ -43,7 +43,7 @@ export default function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
       {/* Info */}
       <div className="text-sm text-gray-700">
         Mostrando <span className="font-medium">{startItem}</span> até{" "}
@@ -70,8 +70,11 @@ export default function Pagination({
           Anterior
         </button>
 
-        {/* Page Numbers */}
-        <div className="flex items-center space-x-1">
+        {/* Page Numbers (no celular mostra só "x / y") */}
+        <span className="sm:hidden px-2 text-sm text-gray-700">
+          {currentPage} / {totalPages}
+        </span>
+        <div className="hidden sm:flex items-center space-x-1">
           {getVisiblePages().map((page, index) => (
             <button
               key={index}
